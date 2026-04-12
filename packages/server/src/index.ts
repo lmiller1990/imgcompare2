@@ -3,9 +3,12 @@ import multipart from '@fastify/multipart'
 import fastifyJwt from '@fastify/jwt'
 import 'dotenv/config';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import bcrypt from 'bcrypt'
 import { users } from './db/schema.ts';
+import { eq } from 'drizzle-orm';
 
 
+const salt = 12
 const db = drizzle(process.env.DATABASE_URL!);
 
 const fastify = Fastify({ logger: { level: "debug" } })
@@ -18,7 +21,28 @@ fastify.get('/health', async () => {
 
 fastify.post<{ Body: { email: string, password: string } }>("/signup", async (req, reply) => {
   const token = fastify.jwt.sign({ email: req.body.email })
-  db.insert(users).values({ email: req.body.email, password: req.body.password })
+  const hash = await bcrypt.hash(req.body.password, salt)
+  await db.insert(users).values({ email: req.body.email, password: hash })
+  reply.send({ token })
+})
+
+fastify.post<{ Body: { email: string, password: string } }>("/login", async (req, reply) => {
+  const q = await db.select().from(users).where(eq(users.email, req.body.email))
+  const user = q?.[0]
+  if (!user) {
+    return reply.code(401).send({
+      error: "Invalid credentials"
+    })
+  }
+
+  const ok = await bcrypt.compare(req.body.password, user.password)
+  if (!ok) {
+    return reply.code(401).send({
+      error: "Invalid credentials"
+    })
+  }
+
+  const token = fastify.jwt.sign({ email: req.body.email })
   reply.send({ token })
 })
 

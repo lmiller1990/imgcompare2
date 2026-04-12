@@ -1,10 +1,63 @@
 import { spawn } from "node:child_process"
 import pino from 'pino'
 import { globby } from 'globby'
-import { input, password } from '@inquirer/prompts';
+import { input, password as passwordPrompt } from '@inquirer/prompts';
 import fs from 'fs'
-import path from "node:path"
+import path, { dirname } from "node:path"
 import ky from 'ky'
+import os from 'os';
+
+const TOKEN_PATH = path.join(os.homedir(), '.imgtoken');
+
+async function getStoredToken() {
+  if (!fs.existsSync(TOKEN_PATH)) return null;
+  try {
+    const data = JSON.parse(await fs.promises.readFile(TOKEN_PATH, 'utf-8'));
+    return data.token;
+  } catch {
+    //
+  }
+}
+
+async function saveToken(token: string) {
+  fs.promises.writeFile(TOKEN_PATH, JSON.stringify({ token }), {
+    mode: 0o600,
+  });
+}
+
+async function signup() {
+  const { email, password } = await promptCredentials()
+  try {
+    const res = await ky.post<{ token: string }>("http://localhost:8070/signup", {
+      json: {
+        email, password
+      },
+    })
+    await saveToken((await res.json()).token)
+    console.log("Welcome aboard!")
+  } catch (error) {
+    console.error(`Error occurred: ${error}`)
+    logger.child({ error }).error("Error posting to server")
+    //
+  }
+}
+
+async function login() {
+  const { email, password } = await promptCredentials()
+  try {
+    const res = await ky.post<{ token: string }>("http://localhost:8070/login", {
+      json: {
+        email, password
+      },
+    })
+    await saveToken((await res.json()).token)
+    console.log("Logged in.")
+  } catch (error) {
+    console.error("Invalid email or password.")
+    logger.child({ error }).error("Error posting to server")
+    //
+  }
+}
 
 const logger = pino({
   level: "debug",
@@ -30,7 +83,6 @@ async function postScreenshots(files: string[]) {
   try {
     const res = await ky.post("http://localhost:8070/projects/:id/run", {
       body: form,
-      // headers: form.getHeaders()
     })
   } catch (error) {
     logger.child({ error }).error("Error posting to server")
@@ -46,13 +98,47 @@ export async function promptCredentials() {
     },
   );
 
-  const pw = await password(
+  const password = await passwordPrompt(
     {
       message: 'Enter a password',
     },
   );
 
-  return response;
+  return { email, password }
+}
+
+async function loadConfig() {
+  const p = dirname(process.cwd())
+  const configPath = path.join(p, "config.json")
+
+  try {
+    const data = await fs.promises.readFile(configPath, "utf-8")
+    const config = JSON.parse(JSON.parse(data))
+  } catch (err) {
+    const e = err as NodeJS.ErrnoException
+
+    if (e.code === "ENOENT") {
+      const defaultConfig = {}
+      await fs.promises.writeFile(
+        configPath,
+        JSON.stringify(defaultConfig, null, 2),
+        "utf-8"
+      )
+
+      console.log(`
+No config.json found.
+A new one has been created at:
+  ${configPath}
+
+Please review and update it as needed.
+`)
+
+      return defaultConfig
+    }
+
+    // Other errors should not be silently swallowed
+    throw e
+  }
 }
 
 export async function run(process: NodeJS.Process) {
@@ -68,7 +154,15 @@ export async function run(process: NodeJS.Process) {
 
   if (cmd === "login") {
     await login()
+    return
   }
+
+  if (cmd === "signup") {
+    await signup()
+    return
+  }
+
+  const config = await loadConfig()
 
   const child = spawn(cmd, args, {
     stdio: 'inherit',
