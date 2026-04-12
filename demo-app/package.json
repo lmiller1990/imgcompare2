@@ -6,7 +6,7 @@
   "main": "index.js",
   "scripts": {
     "test": "PINO=1 node ../packages/cli/index.ts -- playwright test",
-    "start": "pnpm serve . -p 3003" 
+    "start": "pnpm serve . -p 3003"
   },
   "keywords": [],
   "author": "",
