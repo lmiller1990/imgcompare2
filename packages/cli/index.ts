@@ -73,11 +73,15 @@ async function login() {
   }
 }
 
+const showLogs = process.env.PINO 
+
 const logger = pino({
-  level: "debug",
-  transport: {
-    target: 'pino-pretty',
-  },
+  level: process.env.LOG_LEVEL || 'info',
+  ...(showLogs && {
+    transport: {
+      target: 'pino-pretty',
+    },
+  }),
 })
 
 async function findAllScreenshots(cwd: string) {
