@@ -1,7 +1,9 @@
 import Fastify from 'fastify'
-import fs from 'node:fs'
 import multipart from '@fastify/multipart'
-import { pipeline } from 'node:stream/promises'
+import 'dotenv/config';
+import { drizzle } from 'drizzle-orm/node-postgres';
+
+const db = drizzle(process.env.DATABASE_URL!); 
 
 const fastify = Fastify({ logger: { level: "debug" } })
   .register(multipart)
