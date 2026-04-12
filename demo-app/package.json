@@ -1,0 +1,24 @@
+{
+  "type": "module",
+  "name": "demo-app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "node ../packages/cli/index.ts -- playwright test",
+    "start": "pnpm serve . -p 3003" 
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.33.0",
+  "dependencies": {
+    "playwright": "^1.59.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1",
+    "@types/node": "^25.6.0",
+    "serve": "^14.2.6",
+    "typescript": "^6.0.2"
+  }
+}

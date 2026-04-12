@@ -25,7 +25,6 @@ export async function run(process: NodeJS.Process) {
     shell: false
   })
 
-
   child.on("exit", (code, signal) => {
     console.log(`Finished with ${code} and signal: ${signal}`)
     // forward this to ensure we fail with same status as uses process
