@@ -1,7 +1,17 @@
 {
   "type": "module",
   "name": "@packages/server",
+  "scripts": {
+    "start": "nodemon src/index.ts"
+  },
   "dependencies": {
-    "fastify": "^5.8.4"
+    "@fastify/multipart": "^10.0.0",
+    "@types/node": "^25.6.0",
+    "fastify": "^5.8.4",
+    "typescript": "^6.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14",
+    "ts-node": "^10.9.2"
   }
 }

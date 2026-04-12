@@ -22,12 +22,19 @@ async function postScreenshots(files: string[]) {
   const form = new FormData()
 
   for (const path of files) {
-    form.append("screenshots", fs.createReadStream(path))
+    const buffer = await fs.promises.readFile(path)
+    form.append("screenshots", new Blob([buffer]), path)
   }
 
-  const res = await ky.post("http://localhost:8070", {
-    body: form
-  })
+  try {
+    const res = await ky.post("http://localhost:8070/projects/:id/run", {
+      body: form,
+      // headers: form.getHeaders()
+    })
+  } catch (error) {
+    logger.child({ error }).error("Error posting to server")
+    //
+  }
 }
 
 export async function run(process: NodeJS.Process) {
@@ -50,7 +57,7 @@ export async function run(process: NodeJS.Process) {
     console.log(`Finished with ${code} and signal: ${signal}`)
 
     const files = await findAllScreenshots(process.cwd())
-    ky.post
+    await postScreenshots(files)
 
     // forward this to ensure we fail with same status as uses process
     process.exit(code)
