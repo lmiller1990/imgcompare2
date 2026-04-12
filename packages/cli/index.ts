@@ -9,6 +9,20 @@ import os from 'os';
 
 const TOKEN_PATH = path.join(os.homedir(), '.imgtoken');
 
+const api = ky.extend({
+  baseUrl: 'http://localhost:8070',
+  hooks: {
+    beforeRequest: [
+      async ({ request }) => {
+        const token = await getStoredToken();
+        if (token) {
+          request.headers.set('Authorization', `Bearer ${token}`);
+        }
+      }
+    ]
+  }
+});
+
 async function getStoredToken() {
   if (!fs.existsSync(TOKEN_PATH)) return null;
   try {
@@ -28,7 +42,7 @@ async function saveToken(token: string) {
 async function signup() {
   const { email, password } = await promptCredentials()
   try {
-    const res = await ky.post<{ token: string }>("http://localhost:8070/signup", {
+    const res = await api.post<{ token: string }>("signup", {
       json: {
         email, password
       },
@@ -45,7 +59,7 @@ async function signup() {
 async function login() {
   const { email, password } = await promptCredentials()
   try {
-    const res = await ky.post<{ token: string }>("http://localhost:8070/login", {
+    const res = await api.post<{ token: string }>("login", {
       json: {
         email, password
       },
@@ -81,7 +95,7 @@ async function postScreenshots(files: string[]) {
   }
 
   try {
-    const res = await ky.post("http://localhost:8070/projects/:id/run", {
+    const res = await api.post("projects/:id/run", {
       body: form,
     })
   } catch (error) {
@@ -108,16 +122,26 @@ export async function promptCredentials() {
 }
 
 async function createNewProject() {
+  const projectName = await input({
+    message: "It looks like this is your first time running the tool in this project. Give it a name to continue:"
+  })
 
+  const res = await api.post<{ id: string }>("projects", {
+    json: {
+      name: projectName
+    },
+  })
+
+  const json = await res.json()
+  return json.id
 }
 
 async function loadConfig() {
-  const p = dirname(process.cwd())
-  const configPath = path.join(p, "config.json")
+  const configPath = path.join(process.cwd(), "config.json")
 
   try {
     const data = await fs.promises.readFile(configPath, "utf-8")
-    return JSON.parse(JSON.parse(data))
+    return JSON.parse(data)
   } catch (err) {
     const e = err as NodeJS.ErrnoException
 

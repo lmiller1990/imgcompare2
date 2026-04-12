@@ -1,0 +1,9 @@
+{
+  "projectId": {
+    "id": "42ffe9a9-80d6-4741-84c8-2f3980fdcb1a",
+    "name": "my-test-project",
+    "ownerUserId": "e85825d0-efcf-4dcf-87dc-764bd60ef56b",
+    "s3BucketUuid": "a9cf256d-4b85-4165-9753-375352e3912a",
+    "createdAt": "2026-04-12T13:14:59.672Z"
+  }
+}
