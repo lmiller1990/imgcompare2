@@ -1,0 +1,7 @@
+{
+  "type": "module",
+  "name": "@packages/server",
+  "dependencies": {
+    "fastify": "^5.8.4"
+  }
+}
