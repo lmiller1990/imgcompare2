@@ -107,18 +107,24 @@ export async function promptCredentials() {
   return { email, password }
 }
 
+async function createNewProject() {
+
+}
+
 async function loadConfig() {
   const p = dirname(process.cwd())
   const configPath = path.join(p, "config.json")
 
   try {
     const data = await fs.promises.readFile(configPath, "utf-8")
-    const config = JSON.parse(JSON.parse(data))
+    return JSON.parse(JSON.parse(data))
   } catch (err) {
     const e = err as NodeJS.ErrnoException
 
     if (e.code === "ENOENT") {
-      const defaultConfig = {}
+      const projectId = await createNewProject()
+
+      const defaultConfig = { projectId }
       await fs.promises.writeFile(
         configPath,
         JSON.stringify(defaultConfig, null, 2),

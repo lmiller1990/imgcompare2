@@ -4,7 +4,7 @@ import fastifyJwt from '@fastify/jwt'
 import 'dotenv/config';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import bcrypt from 'bcrypt'
-import { users } from './db/schema.ts';
+import { users, projects } from './db/schema.ts';
 import { eq } from 'drizzle-orm';
 
 
@@ -44,6 +44,28 @@ fastify.post<{ Body: { email: string, password: string } }>("/login", async (req
 
   const token = fastify.jwt.sign({ email: req.body.email })
   reply.send({ token })
+})
+
+fastify.post<{ Body: { name: string } }>("/projects", async (req, reply) => {
+  try {
+    await req.jwtVerify()
+  } catch {
+    return reply.code(401).send({ error: "Unauthorized" })
+  }
+
+  const { email } = req.user as { email: string }
+  const q = await db.select().from(users).where(eq(users.email, email))
+  const user = q?.[0]
+  if (!user) {
+    return reply.code(401).send({ error: "Unauthorized" })
+  }
+
+  const inserted = await db.insert(projects).values({
+    name: req.body.name,
+    ownerUserId: user.id,
+  }).returning()
+
+  reply.code(201).send(inserted[0])
 })
 
 fastify.post("/projects/:id/run", async (req, reply) => {
