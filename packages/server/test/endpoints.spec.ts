@@ -27,7 +27,7 @@ describe("Postgres container (ESM)", () => {
   });
 
   it("should connect to postgres", async () => {
-    await db.insert(schema.users).values({ name: "Lachlan", email: "lachlan@miller.me", password: "123" })
+    await db.insert(schema.users).values({ email: "lachlan@miller.me", password: "123" })
     const res = await db.select().from(schema.users).where(eq(schema.users.email, "lachlan@miller.me"))
     expect(res).toContainEqual(
       expect.objectContaining({

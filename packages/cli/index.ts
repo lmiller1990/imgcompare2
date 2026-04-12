@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process"
 import pino from 'pino'
 import { globby } from 'globby'
+import { input, password } from '@inquirer/prompts';
 import fs from 'fs'
 import path from "node:path"
 import ky from 'ky'
@@ -37,6 +38,23 @@ async function postScreenshots(files: string[]) {
   }
 }
 
+export async function promptCredentials() {
+  const email = await input(
+    {
+      message: 'Enter your email',
+      required: true,
+    },
+  );
+
+  const pw = await password(
+    {
+      message: 'Enter a password',
+    },
+  );
+
+  return response;
+}
+
 export async function run(process: NodeJS.Process) {
   let cleanArgs = process.argv.slice(2)
   cleanArgs = cleanArgs[0] === "--" ? cleanArgs.slice(1) : cleanArgs;
@@ -46,6 +64,10 @@ export async function run(process: NodeJS.Process) {
   const [cmd, ...args] = cleanArgs
   if (!cmd) {
     throw new Error(`You need to pass a command, eg pnpm exec <tool> playwright test`)
+  }
+
+  if (cmd === "login") {
+    await login()
   }
 
   const child = spawn(cmd, args, {
