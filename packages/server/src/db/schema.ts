@@ -6,7 +6,7 @@ import {
   boolean,
   primaryKey,
 } from 'drizzle-orm/pg-core'
-import { relations } from 'drizzle-orm'
+
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -26,6 +26,12 @@ export const projects = pgTable('projects', {
   s3BucketUuid: uuid('s3_bucket_uuid').defaultRandom().notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
+
+// export const usersRelations = relations(users, ({ many }) => ({
+//   ownedProjects: many(projects),
+// }))
+
+// export const relations = define
 
 // export const projectMembers = pgTable(
 //   'project_members',
