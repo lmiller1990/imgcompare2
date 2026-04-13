@@ -73,7 +73,7 @@ async function login() {
   }
 }
 
-const showLogs = process.env.PINO 
+const showLogs = process.env.PINO
 
 const logger = pino({
   level: process.env.LOG_LEVEL || 'info',
@@ -84,13 +84,20 @@ const logger = pino({
   }),
 })
 
+  async function createRun(projectId: string ){
+  const res = await api.post<{ id: string }>(`projects/:projectId/runs`)
+
+
+  }
+
+
 async function findAllScreenshots(cwd: string) {
   const files = await globby(path.posix.join(cwd, "**/*.png"))
   logger.child({ files }).debug("Found files")
   return files
 }
 
-async function postScreenshots(files: string[]) {
+async function postScreenshots(runId: string, files: string[]) {
   const form = new FormData()
 
   for (const path of files) {
@@ -99,7 +106,7 @@ async function postScreenshots(files: string[]) {
   }
 
   try {
-    const res = await api.post("projects/:id/run", {
+    await api.post(`projects/:id/run/${runId}/finalize`, {
       body: form,
     })
   } catch (error) {
@@ -140,7 +147,7 @@ async function createNewProject() {
   return json.id
 }
 
-async function loadConfig() {
+async function loadConfig(): Promise<{ projectId: string }> {
   const configPath = path.join(process.cwd(), "config.json")
 
   try {
@@ -197,6 +204,9 @@ export async function run(process: NodeJS.Process) {
   }
 
   const config = await loadConfig()
+  log.child({ config }).debug("Loaded config")
+
+  const runId = createRun(config.projectId)
 
   const child = spawn(cmd, args, {
     stdio: 'inherit',
@@ -207,7 +217,7 @@ export async function run(process: NodeJS.Process) {
     console.log(`Finished with ${code} and signal: ${signal}`)
 
     const files = await findAllScreenshots(process.cwd())
-    await postScreenshots(files)
+    await postScreenshots(runId, files)
 
     // forward this to ensure we fail with same status as uses process
     process.exit(code)

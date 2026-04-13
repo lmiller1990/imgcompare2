@@ -5,7 +5,7 @@ import 'dotenv/config';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import bcrypt from 'bcrypt'
 import { users, projects } from './db/schema.ts';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 
 const salt = 12
@@ -68,22 +68,41 @@ fastify.post<{ Body: { name: string } }>("/projects", async (req, reply) => {
   reply.code(201).send(inserted[0])
 })
 
-fastify.post("/projects/:id/run", async (req, reply) => {
+fastify.post<{ Params: { id: string } }>("/projects/:id/runs", async (req, reply) => {
+  try {
+    await req.jwtVerify()
+  } catch {
+    return reply.code(401).send({ error: "Unauthorized" })
+  }
+
+  const { email } = req.user as { email: string }
+  const q = await db.select().from(users).where(eq(users.email, email))
+  const user = q?.[0]
+  if (!user) {
+    return reply.code(401).send({ error: "Unauthorized" })
+  }
+
+  const p = await db.select().from(projects).where(
+    and(
+      eq(projects.ownerUserId, user.id),
+      eq(projects.id, req.params.id)
+    )
+  )
+
+  const project = p?.[0]
+  if (!project) {
+    return reply.code(401).send({ error: "Unauthorized" })
+  }
+
+  
+})
+
+fastify.post("/projects/:id/run/:id/finalize", async (req, reply) => {
   for await (const file of req.files()) {
     if (file.fieldname === "screenshots") {
       req.log.debug(`Received screenshot ${file.filename}`)
     }
-    // console.log("OKKKKKKKKKKKKK")
-    // req.log.child({ data: typeof data, filename: data.filename }).debug("Got file data")
-    // await pipeline(data.file, fs.createWriteStream(data.filename))
-    // data.file // stream
-    // data.fields // other parsed parts
-    // data.fieldname
-    // data.filename
-    // data.encoding
-    // data.mimetype
   }
-
 
   reply.send()
 })

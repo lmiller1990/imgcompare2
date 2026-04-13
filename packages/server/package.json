@@ -2,7 +2,8 @@
   "type": "module",
   "name": "@packages/server",
   "scripts": {
-    "start": "nodemon src/index.ts"
+    "start": "nodemon src/index.ts",
+    "migrate": "drizzle-kit push"
   },
   "dependencies": {
     "@fastify/jwt": "^10.0.0",
