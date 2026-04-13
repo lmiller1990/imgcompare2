@@ -6,8 +6,8 @@ import {
   CreateBucketCommand,
   PutObjectCommand,
 } from "@aws-sdk/client-s3";
-import { logger } from "../index.ts";
 import { Upload } from "@aws-sdk/lib-storage";
+import type { FastifyLogFn, FastifyRegister, FastifyRequest } from "fastify";
 
 const s3 = new S3Client({ region: "ap-southeast-2", profile: "terraform" });
 
@@ -18,16 +18,18 @@ interface SnapshotService {
 
 export class S3SnapshotService implements SnapshotService {
   dir: string;
+  logger: FastifyRequest["log"];
 
-  constructor(_dir: string) {
+  constructor(_dir: string, _logger: FastifyRequest["log"]) {
     this.dir = _dir;
+    this.logger = _logger;
   }
 
   async ensureDirExists() {
     try {
       await s3.send(new HeadBucketCommand({ Bucket: this.dir }));
     } catch (err) {
-      logger.error(`Failed to create S3 bucket: ${err}`);
+      this.logger.error(`Failed to create S3 bucket: ${err}`);
     }
   }
 
