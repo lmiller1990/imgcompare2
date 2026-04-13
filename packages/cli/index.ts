@@ -1,32 +1,32 @@
-import { spawn } from "node:child_process"
-import pino from 'pino'
-import { globby } from 'globby'
-import { input, password as passwordPrompt } from '@inquirer/prompts';
-import fs from 'fs'
-import path, { dirname } from "node:path"
-import ky from 'ky'
-import os from 'os';
+import { spawn } from "node:child_process";
+import pino from "pino";
+import { globby } from "globby";
+import { input, password as passwordPrompt } from "@inquirer/prompts";
+import fs from "fs";
+import path, { dirname } from "node:path";
+import ky from "ky";
+import os from "os";
 
-const TOKEN_PATH = path.join(os.homedir(), '.imgtoken');
+const TOKEN_PATH = path.join(os.homedir(), ".imgtoken");
 
 const api = ky.extend({
-  baseUrl: 'http://localhost:8070',
+  baseUrl: "http://localhost:8070",
   hooks: {
     beforeRequest: [
       async ({ request }) => {
         const token = await getStoredToken();
         if (token) {
-          request.headers.set('Authorization', `Bearer ${token}`);
+          request.headers.set("Authorization", `Bearer ${token}`);
         }
-      }
-    ]
-  }
+      },
+    ],
+  },
 });
 
 async function getStoredToken() {
   if (!fs.existsSync(TOKEN_PATH)) return null;
   try {
-    const data = JSON.parse(await fs.promises.readFile(TOKEN_PATH, 'utf-8'));
+    const data = JSON.parse(await fs.promises.readFile(TOKEN_PATH, "utf-8"));
     return data.token;
   } catch {
     //
@@ -40,131 +40,131 @@ async function saveToken(token: string) {
 }
 
 async function signup() {
-  const { email, password } = await promptCredentials()
+  const { email, password } = await promptCredentials();
   try {
     const res = await api.post<{ token: string }>("signup", {
       json: {
-        email, password
+        email,
+        password,
       },
-    })
-    await saveToken((await res.json()).token)
-    console.log("Welcome aboard!")
+    });
+    await saveToken((await res.json()).token);
+    console.log("Welcome aboard!");
   } catch (error) {
-    console.error(`Error occurred: ${error}`)
-    logger.child({ error }).error("Error posting to server")
+    console.error(`Error occurred: ${error}`);
+    logger.child({ error }).error("Error posting to server");
     //
   }
 }
 
 async function login() {
-  const { email, password } = await promptCredentials()
+  const { email, password } = await promptCredentials();
   try {
     const res = await api.post<{ token: string }>("login", {
       json: {
-        email, password
+        email,
+        password,
       },
-    })
-    await saveToken((await res.json()).token)
-    console.log("Logged in.")
+    });
+    await saveToken((await res.json()).token);
+    console.log("Logged in.");
   } catch (error) {
-    console.error("Invalid email or password.")
-    logger.child({ error }).error("Error posting to server")
+    console.error("Invalid email or password.");
+    logger.child({ error }).error("Error posting to server");
     //
   }
 }
 
-const showLogs = process.env.PINO
+const showLogs = process.env.PINO;
 
 const logger = pino({
-  level: process.env.LOG_LEVEL || 'info',
+  level: process.env.LOG_LEVEL || "info",
   ...(showLogs && {
     transport: {
-      target: 'pino-pretty',
+      target: "pino-pretty",
     },
   }),
-})
+});
 
-  async function createRun(projectId: string ){
-  const res = await api.post<{ id: string }>(`projects/:projectId/runs`)
-
-
-  }
-
+async function createRun(projectId: string) {
+  logger.debug("Creating run...");
+  const res = await (
+    await api.post<{ id: string }>(`projects/${projectId}/runs`)
+  ).json();
+  return res;
+}
 
 async function findAllScreenshots(cwd: string) {
-  const files = await globby(path.posix.join(cwd, "**/*.png"))
-  logger.child({ files }).debug("Found files")
-  return files
+  const files = await globby(path.posix.join(cwd, "**/*.png"));
+  logger.child({ files }).debug("Found files");
+  return files;
 }
 
 async function postScreenshots(runId: string, files: string[]) {
-  const form = new FormData()
+  const form = new FormData();
 
   for (const path of files) {
-    const buffer = await fs.promises.readFile(path)
-    form.append("screenshots", new Blob([buffer]), path)
+    const buffer = await fs.promises.readFile(path);
+    form.append("screenshots", new Blob([buffer]), path);
   }
 
   try {
     await api.post(`projects/:id/run/${runId}/finalize`, {
       body: form,
-    })
+    });
   } catch (error) {
-    logger.child({ error }).error("Error posting to server")
+    logger.child({ error }).error("Error posting to server");
     //
   }
 }
 
 export async function promptCredentials() {
-  const email = await input(
-    {
-      message: 'Enter your email',
-      required: true,
-    },
-  );
+  const email = await input({
+    message: "Enter your email",
+    required: true,
+  });
 
-  const password = await passwordPrompt(
-    {
-      message: 'Enter a password',
-    },
-  );
+  const password = await passwordPrompt({
+    message: "Enter a password",
+  });
 
-  return { email, password }
+  return { email, password };
 }
 
 async function createNewProject() {
   const projectName = await input({
-    message: "It looks like this is your first time running the tool in this project. Give it a name to continue:"
-  })
+    message:
+      "It looks like this is your first time running the tool in this project. Give it a name to continue:",
+  });
 
   const res = await api.post<{ id: string }>("projects", {
     json: {
-      name: projectName
+      name: projectName,
     },
-  })
+  });
 
-  const json = await res.json()
-  return json.id
+  const json = await res.json();
+  return json.id;
 }
 
 async function loadConfig(): Promise<{ projectId: string }> {
-  const configPath = path.join(process.cwd(), "config.json")
+  const configPath = path.join(process.cwd(), "config.json");
 
   try {
-    const data = await fs.promises.readFile(configPath, "utf-8")
-    return JSON.parse(data)
+    const data = await fs.promises.readFile(configPath, "utf-8");
+    return JSON.parse(data);
   } catch (err) {
-    const e = err as NodeJS.ErrnoException
+    const e = err as NodeJS.ErrnoException;
 
     if (e.code === "ENOENT") {
-      const projectId = await createNewProject()
+      const projectId = await createNewProject();
 
-      const defaultConfig = { projectId }
+      const defaultConfig = { projectId };
       await fs.promises.writeFile(
         configPath,
         JSON.stringify(defaultConfig, null, 2),
-        "utf-8"
-      )
+        "utf-8",
+      );
 
       console.log(`
 No config.json found.
@@ -172,56 +172,59 @@ A new one has been created at:
   ${configPath}
 
 Please review and update it as needed.
-`)
+`);
 
-      return defaultConfig
+      return defaultConfig;
     }
 
     // Other errors should not be silently swallowed
-    throw e
+    throw e;
   }
 }
 
 export async function run(process: NodeJS.Process) {
-  let cleanArgs = process.argv.slice(2)
+  let cleanArgs = process.argv.slice(2);
   cleanArgs = cleanArgs[0] === "--" ? cleanArgs.slice(1) : cleanArgs;
-  const log = logger.child({ args: cleanArgs, cwd: process.cwd() })
+  const log = logger.child({ args: cleanArgs, cwd: process.cwd() });
 
-  log.debug("Running")
-  const [cmd, ...args] = cleanArgs
+  log.debug("Running");
+  const [cmd, ...args] = cleanArgs;
   if (!cmd) {
-    throw new Error(`You need to pass a command, eg pnpm exec <tool> playwright test`)
+    throw new Error(
+      `You need to pass a command, eg pnpm exec <tool> playwright test`,
+    );
   }
 
   if (cmd === "login") {
-    await login()
-    return
+    await login();
+    return;
   }
 
   if (cmd === "signup") {
-    await signup()
-    return
+    await signup();
+    return;
   }
 
-  const config = await loadConfig()
-  log.child({ config }).debug("Loaded config")
+  const config = await loadConfig();
+  log.child({ config }).debug("Loaded config");
 
-  const runId = createRun(config.projectId)
+  const runId = createRun(config.projectId);
+  log.child({ runId }).debug("Created a run");
 
   const child = spawn(cmd, args, {
-    stdio: 'inherit',
-    shell: false
-  })
+    stdio: "inherit",
+    shell: false,
+  });
 
   child.on("exit", async (code, signal) => {
-    console.log(`Finished with ${code} and signal: ${signal}`)
+    console.log(`Finished with ${code} and signal: ${signal}`);
 
-    const files = await findAllScreenshots(process.cwd())
-    await postScreenshots(runId, files)
+    const files = await findAllScreenshots(process.cwd());
+    await postScreenshots(runId, files);
 
     // forward this to ensure we fail with same status as uses process
-    process.exit(code)
-  })
+    process.exit(code);
+  });
 }
 
-run(process)
+run(process);

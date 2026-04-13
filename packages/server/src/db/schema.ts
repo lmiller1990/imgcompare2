@@ -5,36 +5,43 @@ import {
   uuid,
   boolean,
   primaryKey,
-} from 'drizzle-orm/pg-core'
+} from "drizzle-orm/pg-core";
 
+export const users = pgTable("users", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").unique().notNull(),
+  password: text("password").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
 
-export const users = pgTable('users', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  email: text('email').unique().notNull(),
-  password: text('password').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-})
-
-export const projects = pgTable('projects', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  name: text('name').notNull(),
-  ownerUserId: uuid('owner_user_id')
+export const projects = pgTable("projects", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  ownerUserId: uuid("owner_user_id")
     .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  s3BucketUuid: uuid('s3_bucket_uuid').defaultRandom().notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-})
+    .references(() => users.id, { onDelete: "cascade" }),
+  s3BucketUuid: uuid("s3_bucket_uuid").defaultRandom().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
 
-export const runs = pgTable('runs', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  projectId: uuid('project_id')
+export const runs = pgTable("runs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id")
     .notNull()
-    .references(() => projects.id, { onDelete: 'cascade' }),
-  status: text('status').notNull().default('pending'),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  completedAt: timestamp('completed_at', { withTimezone: true }),
-})
+    .references(() => projects.id, { onDelete: "cascade" }),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+});
 
 // export const usersRelations = relations(users, ({ many }) => ({
 //   ownedProjects: many(projects),
