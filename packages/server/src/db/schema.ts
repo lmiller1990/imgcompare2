@@ -43,6 +43,17 @@ export const runs = pgTable("runs", {
   completedAt: timestamp("completed_at", { withTimezone: true }),
 });
 
+export const snapshots = pgTable("snapshots", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  runId: uuid("run_id")
+    .notNull()
+    .references(() => runs.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  imageS3Path: text("image_s3_path").notNull(),
+  diffS3Path: text("diff_s3_path"),
+  status: text("status").notNull(),
+});
+
 // export const usersRelations = relations(users, ({ many }) => ({
 //   ownedProjects: many(projects),
 // }))

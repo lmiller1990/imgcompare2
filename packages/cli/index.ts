@@ -208,7 +208,7 @@ export async function run(process: NodeJS.Process) {
   const config = await loadConfig();
   log.child({ config }).debug("Loaded config");
 
-  const runId = createRun(config.projectId);
+  const { id: runId } = await createRun(config.projectId);
   log.child({ runId }).debug("Created a run");
 
   const child = spawn(cmd, args, {

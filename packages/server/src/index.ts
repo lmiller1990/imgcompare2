@@ -6,9 +6,12 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import bcrypt from "bcrypt";
 import { users, projects, runs } from "./db/schema.ts";
 import { and, eq } from "drizzle-orm";
+import { S3SnapshotService } from "./services/s3.ts";
+import path from "node:path";
 
 const salt = 12;
 const db = drizzle(process.env.DATABASE_URL!);
+const rootBucket = "lcm-au-imgcompare-screenshots";
 
 const fastify = Fastify({ logger: { level: "debug" } })
   .register(multipart)
@@ -17,6 +20,8 @@ const fastify = Fastify({ logger: { level: "debug" } })
 fastify.get("/health", async () => {
   return { status: "ok" };
 });
+
+export const logger = fastify.log;
 
 fastify.post<{ Body: { email: string; password: string } }>(
   "/signup",
@@ -118,15 +123,26 @@ fastify.post<{ Params: { id: string } }>(
   },
 );
 
-fastify.post("/projects/:id/run/:id/finalize", async (req, reply) => {
-  for await (const file of req.files()) {
-    if (file.fieldname === "screenshots") {
-      req.log.debug(`Received screenshot ${file.filename}`);
-    }
-  }
+fastify.post<{ Params: { runId: string } }>(
+  "/projects/:id/run/:runId/finalize",
+  async (req, reply) => {
+    const snapshotService = new S3SnapshotService(path.join(rootBucket));
+    await snapshotService.ensureDirExists();
 
-  reply.send();
-});
+    for await (const file of req.files()) {
+      if (file.fieldname === "screenshots") {
+        req.log.debug(`Received screenshot ${file.filename}`);
+        await snapshotService.store(
+          `${req.params.runId}/${file.filename}`,
+          file,
+        );
+        req.log.child({ file: file.filename }).debug("Uploaded file");
+      }
+    }
+
+    reply.send();
+  },
+);
 
 try {
   await fastify.listen({ port: 8070 });
