@@ -8,12 +8,14 @@ import { users, projects, runs, snapshots } from "./db/schema.ts";
 import { and, eq } from "drizzle-orm";
 import { S3SnapshotService } from "./services/s3.ts";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const salt = 12;
 const db = drizzle(process.env.DATABASE_URL!);
 const rootBucket = "lcm-au-imgcompare-screenshots";
 
-const fastify = Fastify({ logger: { level: "debug" } })
+// Export for testing
+export const fastify = Fastify({ logger: { level: "debug" } })
   .register(multipart)
   .register(fastifyJwt, { secret: "secret123" });
 
@@ -194,9 +196,11 @@ fastify.post<{ Params: { projectId: string; runId: string } }>(
   },
 );
 
-try {
-  await fastify.listen({ port: 8070 });
-} catch (err) {
-  fastify.log.error(err);
-  process.exit(1);
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  try {
+    await fastify.listen({ port: 8070 });
+  } catch (err) {
+    fastify.log.error(err);
+    process.exit(1);
+  }
 }
