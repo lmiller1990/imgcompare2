@@ -8,7 +8,7 @@ import { users, projects, runs, snapshots } from "./db/schema.ts";
 import { and, eq } from "drizzle-orm";
 import { S3SnapshotService } from "./services/s3.ts";
 import path from "node:path";
-import fastifyAuth from '@fastify/auth'
+import fastifyAuth from "@fastify/auth";
 import { fileURLToPath } from "node:url";
 
 const salt = 12;
@@ -19,15 +19,14 @@ const rootBucket = "lcm-au-imgcompare-screenshots";
 export const fastify = Fastify({ logger: { level: "debug" } })
   .register(multipart)
   .register(fastifyJwt, { secret: "secret123" })
-  .register(fastifyAuth)
-  ;
+  .register(fastifyAuth);
 
 fastify.decorate(
   "verifyJwt",
   async function (request: FastifyRequest, reply: FastifyReply) {
-    await request.jwtVerify()
-  }
-)
+    await request.jwtVerify();
+  },
+);
 
 fastify.get("/health", async () => {
   return { status: "ok" };
@@ -71,37 +70,36 @@ fastify.post<{ Body: { email: string; password: string } }>(
   },
 );
 
-fastify.post<{ Body: { name: string } }>("/projects", {
-  preHandler: [
-    fastify.verifyJwt
-  ]
-}, async (req, reply) => {
-  // try {
-  //   await req.jwtVerify();
-  // } catch {
-  //   return reply.code(401).send({ error: "Unauthorized" });
-  // }
+fastify.post<{ Body: { name: string } }>(
+  "/projects",
+  {
+    preHandler: [fastify.verifyJwt],
+  },
+  async (req, reply) => {
+    const { email } = req.user as { email: string };
+    const q = await db.select().from(users).where(eq(users.email, email));
+    const user = q?.[0];
+    if (!user) {
+      return reply.code(401).send({ error: "Unauthorized" });
+    }
 
-  const { email } = req.user as { email: string };
-  const q = await db.select().from(users).where(eq(users.email, email));
-  const user = q?.[0];
-  if (!user) {
-    return reply.code(401).send({ error: "Unauthorized" });
-  }
+    const inserted = await db
+      .insert(projects)
+      .values({
+        name: req.body.name,
+        ownerUserId: user.id,
+      })
+      .returning();
 
-  const inserted = await db
-    .insert(projects)
-    .values({
-      name: req.body.name,
-      ownerUserId: user.id,
-    })
-    .returning();
-
-  reply.code(201).send(inserted[0]);
-});
+    reply.code(201).send(inserted[0]);
+  },
+);
 
 fastify.post<{ Params: { id: string } }>(
   "/projects/:id/runs",
+  {
+    preHandler: [fastify.verifyJwt],
+  },
   async (req, reply) => {
     try {
       await req.jwtVerify();
@@ -144,24 +142,34 @@ type RunUpdate = Partial<typeof runs.$inferInsert>;
 fastify.patch<{
   Params: { projectId: string; runId: string };
   Body: RunUpdate;
-}>("/projects/:projectId/run/:runId", async (req, reply) => {
-  const { id, projectId, ...rest } = req.body;
+}>(
+  "/projects/:projectId/run/:runId",
+  {
+    preHandler: [fastify.verifyJwt],
+  },
+  async (req, reply) => {
+    const { id, projectId, ...rest } = req.body;
 
-  await db
-    .update(runs)
-    .set(rest)
-    .where(
-      and(
-        eq(runs.id, req.params.runId),
-        eq(runs.projectId, req.params.projectId),
-      ),
-    );
+    await db
+      .update(runs)
+      .set(rest)
+      .where(
+        and(
+          eq(runs.id, req.params.runId),
+          eq(runs.projectId, req.params.projectId),
+        ),
+      );
 
-  reply.code(202).send();
-});
+    reply.code(202).send();
+  },
+);
 
 fastify.post<{ Params: { projectId: string; runId: string } }>(
   "/projects/:projectId/run/:runId/finalize",
+
+  {
+    preHandler: [fastify.verifyJwt],
+  },
   async (req, reply) => {
     const snapshotService = new S3SnapshotService(path.join(rootBucket));
     await snapshotService.ensureDirExists();
