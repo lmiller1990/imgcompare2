@@ -73,6 +73,9 @@ importers:
       '@aws-sdk/lib-storage':
         specifier: ^3.1029.0
         version: 3.1029.0(@aws-sdk/client-s3@3.1029.0)
+      '@fastify/auth':
+        specifier: ^5.0.4
+        version: 5.0.4
       '@fastify/jwt':
         specifier: ^10.0.0
         version: 10.0.0
@@ -769,6 +772,9 @@ packages:
 
   '@fastify/ajv-compiler@4.0.5':
     resolution: {integrity: sha512-KoWKW+MhvfTRWL4qrhUwAAZoaChluo0m0vbiJlGMt2GXvL4LVPQEjt8kSpHI3IBq5Rez8fg+XeH3cneztq+C7A==}
+
+  '@fastify/auth@5.0.4':
+    resolution: {integrity: sha512-nyTM9YTHGoDYVwEmkYnHbzoTjSu+eQHn7u9B5vUNtJOqLr3R9c4J0zENnga73e/Op7xebNZ0Px35qTHEMxDW+g==}
 
   '@fastify/busboy@3.2.0':
     resolution: {integrity: sha512-m9FVDXU3GT2ITSe0UaMA5rU3QkfC/UXtCU8y0gSN/GugTqtVldOBWIB5V6V3sbmenVZUIpU6f+mPEO2+m5iTaA==}
@@ -3843,6 +3849,11 @@ snapshots:
       ajv: 8.18.0
       ajv-formats: 3.0.1(ajv@8.18.0)
       fast-uri: 3.1.0
+
+  '@fastify/auth@5.0.4':
+    dependencies:
+      fastify-plugin: 5.1.0
+      reusify: 1.1.0
 
   '@fastify/busboy@3.2.0': {}
 

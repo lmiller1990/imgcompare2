@@ -1,4 +1,4 @@
-import Fastify from "fastify";
+import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import multipart, { type MultipartFile } from "@fastify/multipart";
 import fastifyJwt from "@fastify/jwt";
 import "dotenv/config";
@@ -8,6 +8,7 @@ import { users, projects, runs, snapshots } from "./db/schema.ts";
 import { and, eq } from "drizzle-orm";
 import { S3SnapshotService } from "./services/s3.ts";
 import path from "node:path";
+import fastifyAuth from '@fastify/auth'
 import { fileURLToPath } from "node:url";
 
 const salt = 12;
@@ -17,7 +18,16 @@ const rootBucket = "lcm-au-imgcompare-screenshots";
 // Export for testing
 export const fastify = Fastify({ logger: { level: "debug" } })
   .register(multipart)
-  .register(fastifyJwt, { secret: "secret123" });
+  .register(fastifyJwt, { secret: "secret123" })
+  .register(fastifyAuth)
+  ;
+
+fastify.decorate(
+  "verifyJwt",
+  async function (request: FastifyRequest, reply: FastifyReply) {
+    await request.jwtVerify()
+  }
+)
 
 fastify.get("/health", async () => {
   return { status: "ok" };
@@ -61,12 +71,16 @@ fastify.post<{ Body: { email: string; password: string } }>(
   },
 );
 
-fastify.post<{ Body: { name: string } }>("/projects", async (req, reply) => {
-  try {
-    await req.jwtVerify();
-  } catch {
-    return reply.code(401).send({ error: "Unauthorized" });
-  }
+fastify.post<{ Body: { name: string } }>("/projects", {
+  preHandler: [
+    fastify.verifyJwt
+  ]
+}, async (req, reply) => {
+  // try {
+  //   await req.jwtVerify();
+  // } catch {
+  //   return reply.code(401).send({ error: "Unauthorized" });
+  // }
 
   const { email } = req.user as { email: string };
   const q = await db.select().from(users).where(eq(users.email, email));
