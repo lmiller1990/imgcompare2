@@ -1,5 +1,5 @@
 import Fastify from "fastify";
-import multipart from "@fastify/multipart";
+import multipart, { type MultipartFile } from "@fastify/multipart";
 import fastifyJwt from "@fastify/jwt";
 import "dotenv/config";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -129,25 +129,44 @@ fastify.post<{ Params: { runId: string } }>(
     const snapshotService = new S3SnapshotService(path.join(rootBucket));
     await snapshotService.ensureDirExists();
 
-    for await (const file of req.files()) {
-      if (file.fieldname === "screenshots") {
-        req.log.debug(`Received screenshot ${file.filename}`);
-        const imageS3Path = `${req.params.runId}/${file.filename}`
-        await snapshotService.store(
-          imageS3Path,
-          file,
-        );
-        req.log.child({ file: file.filename }).debug("Uploaded file");
+    let manifest: string[] = [];
+    const files: MultipartFile[] = [];
 
-        // Should parallelize at some point
-        await db.insert(snapshots).values({
-          runId: req.params.runId,
-          name: file.filename,
-          status: "pending",
-          diffS3Path: undefined,
-          imageS3Path,
-        })
+    for await (const part of req.parts()) {
+      if (part.type === "field" && part.fieldname === "manifest") {
+        manifest = JSON.parse(part.value as string);
+        continue;
       }
+
+      if (part.type === "file" && part.fieldname === "screenshots") {
+        files.push(part);
+      }
+    }
+
+    if (manifest.length !== files.length) {
+      throw Error(
+        `Expected manifest to have exactly one entry per file. Got manifest.length ${manifest.length} files.length ${files.length}`,
+      );
+    }
+
+    // now process once you have both
+    for (let i = 0; i < files.length; i++) {
+      const fullPath = manifest?.[i]!;
+      const file = files[i]!;
+      req.log.info(`File with path ${fullPath} received. File is %o`, file);
+
+      req.log.debug(`Received screenshot ${file.filename}`);
+      const imageS3Path = `${req.params.runId}/${file.filename}`;
+      await snapshotService.store(imageS3Path, file);
+      req.log.child({ file: file.filename }).debug("Uploaded file");
+
+      await db.insert(snapshots).values({
+        runId: req.params.runId,
+        name: fullPath,
+        status: "pending",
+        diffS3Path: undefined,
+        imageS3Path,
+      });
     }
 
     reply.send();

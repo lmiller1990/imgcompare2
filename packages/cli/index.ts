@@ -100,14 +100,15 @@ async function findAllScreenshots(cwd: string) {
   return files;
 }
 
-async function postScreenshots(runId: string, files: string[]) {
+async function postScreenshots(cwd: string, runId: string, files: string[]) {
+  files = files.map((file) => path.relative(cwd, file));
   const form = new FormData();
+
+  form.append("manifest", JSON.stringify(files));
 
   for (const path of files) {
     const buffer = await fs.promises.readFile(path);
-    form.append("screenshots", new Blob([buffer]), path);
-    form.append("screenshotPaths", path);
-
+    form.append("screenshots", new Blob([buffer]), path.split("/").pop());
   }
 
   try {
@@ -222,7 +223,7 @@ export async function run(process: NodeJS.Process) {
     console.log(`Finished with ${code} and signal: ${signal}`);
 
     const files = await findAllScreenshots(process.cwd());
-    await postScreenshots(runId, files);
+    await postScreenshots(process.cwd(), runId, files);
 
     // forward this to ensure we fail with same status as uses process
     process.exit(code);
