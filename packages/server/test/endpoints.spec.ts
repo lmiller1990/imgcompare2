@@ -22,6 +22,7 @@ describe("Postgres container (ESM)", () => {
     await client.connect();
     db = drizzle(client, { schema });
     await migrate(db, { migrationsFolder: "drizzle" });
+    await fastify.ready()
   });
 
   afterAll(async () => {
@@ -50,6 +51,28 @@ describe("Postgres container (ESM)", () => {
     const response = await fastify.inject({
       method: "POST",
       url: "projects",
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it.only("creates project unauthenticated", async () => {
+    const u1 = await db.insert(schema.users).values({ email: "a@b.com", password: "abc" }).returning();
+    const u2 = await db.insert(schema.users).values({ email: "c@d.com", password: "abc" }).returning();
+    const project = await db.insert(schema.projects).values({
+      ownerUserId: u1[0]!.id,
+      name: "a@b.com's project"
+    }).returning();
+
+    const jwt = fastify.jwt.sign({ email: "c@d.com" })
+    // console.log(jwt)
+
+    const response = await fastify.inject({
+      method: "POST",
+      url: `projects/${project[0]!.id}/runs`,
+      headers: {
+        authorization: `Bearer ${jwt}`
+      }
     });
 
     expect(response.statusCode).toBe(401);

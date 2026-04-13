@@ -25,8 +25,34 @@ fastify.decorate(
   "verifyJwt",
   async function (request: FastifyRequest, reply: FastifyReply) {
     await request.jwtVerify();
+    console.log(">>>>>>>>>>>>",request.user)
   },
 );
+
+fastify.decorate(
+  "verifyProjectAccess",
+  async function (request: FastifyRequest<{ Params: { projectId: string } }>, reply: FastifyReply) {
+    const { email } = request.user as { email: string };
+    const q = await db.select().from(users).where(eq(users.email, email));
+    const user = q?.[0];
+    if (!user) {
+      return reply.code(401).send({ error: "Unauthorized" });
+    }
+
+    const p = await db
+      .select()
+      .from(projects)
+      .where(
+        and(eq(projects.ownerUserId, user.id), eq(projects.id, request.params.projectId)),
+      );
+
+    const project = p?.[0];
+    if (!project) {
+      return reply.code(401).send({ error: "Unauthorized" });
+    }
+  },
+);
+
 
 fastify.get("/health", async () => {
   return { status: "ok" };
@@ -95,20 +121,16 @@ fastify.post<{ Body: { name: string } }>(
   },
 );
 
-fastify.post<{ Params: { id: string } }>(
-  "/projects/:id/runs",
+fastify.post<{ Params: { projectId: string } }>(
+  "/projects/:projectId/runs",
   {
     preHandler: [fastify.verifyJwt],
   },
   async (req, reply) => {
-    try {
-      await req.jwtVerify();
-    } catch {
-      return reply.code(401).send({ error: "Unauthorized" });
-    }
-
     const { email } = req.user as { email: string };
+
     const q = await db.select().from(users).where(eq(users.email, email));
+    console.log(q, email)
     const user = q?.[0];
     if (!user) {
       return reply.code(401).send({ error: "Unauthorized" });
@@ -118,7 +140,7 @@ fastify.post<{ Params: { id: string } }>(
       .select()
       .from(projects)
       .where(
-        and(eq(projects.ownerUserId, user.id), eq(projects.id, req.params.id)),
+        and(eq(projects.ownerUserId, user.id), eq(projects.id, req.params.projectId)),
       );
 
     const project = p?.[0];
@@ -129,7 +151,7 @@ fastify.post<{ Params: { id: string } }>(
     const inserted = await db
       .insert(runs)
       .values({
-        projectId: req.params.id,
+        projectId: req.params.projectId,
       })
       .returning();
 
