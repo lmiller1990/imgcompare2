@@ -4,7 +4,7 @@ import fastifyJwt from "@fastify/jwt";
 import "dotenv/config";
 import { drizzle } from "drizzle-orm/node-postgres";
 import bcrypt from "bcrypt";
-import { users, projects, runs } from "./db/schema.ts";
+import { users, projects, runs, snapshots } from "./db/schema.ts";
 import { and, eq } from "drizzle-orm";
 import { S3SnapshotService } from "./services/s3.ts";
 import path from "node:path";
@@ -132,11 +132,21 @@ fastify.post<{ Params: { runId: string } }>(
     for await (const file of req.files()) {
       if (file.fieldname === "screenshots") {
         req.log.debug(`Received screenshot ${file.filename}`);
+        const imageS3Path = `${req.params.runId}/${file.filename}`
         await snapshotService.store(
-          `${req.params.runId}/${file.filename}`,
+          imageS3Path,
           file,
         );
         req.log.child({ file: file.filename }).debug("Uploaded file");
+
+        // Should parallelize at some point
+        await db.insert(snapshots).values({
+          runId: req.params.runId,
+          name: file.filename,
+          status: "pending",
+          diffS3Path: undefined,
+          imageS3Path,
+        })
       }
     }
 

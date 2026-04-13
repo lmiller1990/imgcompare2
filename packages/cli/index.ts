@@ -106,6 +106,8 @@ async function postScreenshots(runId: string, files: string[]) {
   for (const path of files) {
     const buffer = await fs.promises.readFile(path);
     form.append("screenshots", new Blob([buffer]), path);
+    form.append("screenshotPaths", path);
+
   }
 
   try {
