@@ -123,8 +123,29 @@ fastify.post<{ Params: { id: string } }>(
   },
 );
 
-fastify.post<{ Params: { runId: string } }>(
-  "/projects/:id/run/:runId/finalize",
+type RunUpdate = Partial<typeof runs.$inferInsert>;
+
+fastify.patch<{
+  Params: { projectId: string; runId: string };
+  Body: RunUpdate;
+}>("/projects/:projectId/run/:runId", async (req, reply) => {
+  const { id, projectId, ...rest } = req.body;
+
+  await db
+    .update(runs)
+    .set(rest)
+    .where(
+      and(
+        eq(runs.id, req.params.runId),
+        eq(runs.projectId, req.params.projectId),
+      ),
+    );
+
+  reply.code(202).send();
+});
+
+fastify.post<{ Params: { projectId: string; runId: string } }>(
+  "/projects/:projectId/run/:runId/finalize",
   async (req, reply) => {
     const snapshotService = new S3SnapshotService(path.join(rootBucket));
     await snapshotService.ensureDirExists();

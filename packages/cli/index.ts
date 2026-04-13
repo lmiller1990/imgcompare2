@@ -100,7 +100,12 @@ async function findAllScreenshots(cwd: string) {
   return files;
 }
 
-async function postScreenshots(cwd: string, runId: string, files: string[]) {
+async function postScreenshots(
+  cwd: string,
+  projectId: string,
+  runId: string,
+  files: string[],
+) {
   files = files.map((file) => path.relative(cwd, file));
   const form = new FormData();
 
@@ -112,7 +117,7 @@ async function postScreenshots(cwd: string, runId: string, files: string[]) {
   }
 
   try {
-    await api.post(`projects/:id/run/${runId}/finalize`, {
+    await api.post(`projects/${projectId}/run/${runId}/finalize`, {
       body: form,
     });
   } catch (error) {
@@ -185,6 +190,14 @@ Please review and update it as needed.
   }
 }
 
+async function markRunAsComplete(projectId: string, runId: string) {
+  await api.patch(`projects/${projectId}/run/${runId}`, {
+    json: {
+      status: "complete",
+    },
+  });
+}
+
 export async function run(process: NodeJS.Process) {
   let cleanArgs = process.argv.slice(2);
   cleanArgs = cleanArgs[0] === "--" ? cleanArgs.slice(1) : cleanArgs;
@@ -223,7 +236,8 @@ export async function run(process: NodeJS.Process) {
     console.log(`Finished with ${code} and signal: ${signal}`);
 
     const files = await findAllScreenshots(process.cwd());
-    await postScreenshots(process.cwd(), runId, files);
+    await postScreenshots(process.cwd(), config.projectId, runId, files);
+    await markRunAsComplete(config.projectId, runId);
 
     // forward this to ensure we fail with same status as uses process
     process.exit(code);
