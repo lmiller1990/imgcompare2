@@ -10,13 +10,12 @@ import {
 } from "./plugins/auth.ts";
 import { userRoutesPlugin } from "./routes/users.ts";
 import { projectRoutesPlugin } from "./routes/projects.ts";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import * as schema from "./db/schema.ts";
 import { dbPlugin } from "./plugins/db.ts";
 import { projectRunsRoutesPlugin } from "./routes/projects/runs.ts";
+import type { DB } from "./index.ts";
 
 interface CreateAppOptions {
-  db: NodePgDatabase<typeof schema>;
+  db: DB;
 }
 
 export async function createApp(
