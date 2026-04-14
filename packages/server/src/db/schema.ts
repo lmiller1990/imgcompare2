@@ -50,7 +50,6 @@ export const snapshots = pgTable("snapshots", {
     .references(() => runs.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   imageS3Path: text("image_s3_path").notNull(),
-  diffS3Path: text("diff_s3_path"),
   status: text("status").notNull(),
 });
 
@@ -79,6 +78,20 @@ export const baselines = pgTable("baselines", {
     .notNull()
     .references(() => users.id, { onDelete: "restrict" }),
   isActive: boolean("is_active").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const comparisons = pgTable("comparisons", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  snapshotId: uuid("snapshot_id")
+    .notNull()
+    .references(() => snapshots.id, { onDelete: "restrict" }),
+  baselineSnapshotId: uuid("snapshot_id")
+    .notNull()
+    .references(() => snapshots.id, { onDelete: "restrict" }),
+  imageS3Path: text("image_s3_path").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),

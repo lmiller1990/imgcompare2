@@ -133,7 +133,6 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
           runId: req.params.runId,
           name: fullPath,
           status: "pending",
-          diffS3Path: undefined,
           imageS3Path,
         });
       }
