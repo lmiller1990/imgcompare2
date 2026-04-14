@@ -7,6 +7,7 @@ import {
   runs,
   projects,
   runApprovals,
+  baselines,
 } from "../../db/schema.ts";
 import { and, eq } from "drizzle-orm";
 import { S3SnapshotService } from "../../services/s3.ts";
@@ -147,9 +148,19 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
       preHandler: [fastify.verifyUser, fastify.verifyProjectAccess],
     },
     async (req, reply) => {
-      await fastify.db.insert(runApprovals).values({
-        runId: req.params.runId,
-        approvedByUserId: req.dbUser.id,
+      const ra = await fastify.db
+        .insert(runApprovals)
+        .values({
+          runId: req.params.runId,
+          approvedByUserId: req.dbUser.id,
+        })
+        .returning()
+        .then((res) => res?.[0]!);
+
+      const bl = await fastify.db.insert(baselines).values({
+        sourceRunId: req.params.runId,
+        createdByUserId: req.dbUser.id,
+        isActive: true,
       });
       reply.send();
     },
