@@ -11,7 +11,7 @@ const router = useRouter();
 async function login() {
   error.value = "";
   try {
-    await ky.post("/login", {
+    await ky.post("/api/login", {
       json: { email: email.value, password: password.value },
     });
     router.push("/");

@@ -9,7 +9,10 @@ import {
 import { Upload } from "@aws-sdk/lib-storage";
 import type { FastifyLogFn, FastifyRegister, FastifyRequest } from "fastify";
 
-const s3 = new S3Client({ region: "ap-southeast-2", profile: "terraform" });
+export const s3 = new S3Client({
+  region: "ap-southeast-2",
+  profile: "terraform",
+});
 
 interface SnapshotService {
   store(key: string, file: MultipartFile): Promise<void>;

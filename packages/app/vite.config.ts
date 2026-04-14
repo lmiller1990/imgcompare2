@@ -6,9 +6,11 @@ export default defineConfig({
   plugins: [vue(), tailwindcss()],
   server: {
     proxy: {
-      "/signup": "http://localhost:8070",
-      "/login": "http://localhost:8070",
-      "/me": "http://localhost:8070",
+      "/api": {
+        target: "http://localhost:8070",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ""),
+      },
     },
   },
 });

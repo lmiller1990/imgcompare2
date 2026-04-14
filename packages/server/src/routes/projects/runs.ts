@@ -10,9 +10,16 @@ import {
   baselines,
 } from "../../db/schema.ts";
 import { and, eq } from "drizzle-orm";
-import { S3SnapshotService } from "../../services/s3.ts";
+import { s3, S3SnapshotService } from "../../services/s3.ts";
 import path from "node:path";
-import { getActiveBaselineForProject } from "../../db/queries.ts";
+import {
+  getActiveBaselineForProject,
+  getRunById,
+  getRunsForProject,
+  mappers,
+} from "../../db/queries.ts";
+import { PresignedUrlService } from "../../services/presignedUrls.ts";
+import type { Result, Snapshot } from "../../domain.ts";
 
 const rootBucket = "lcm-au-imgcompare-screenshots";
 
@@ -172,4 +179,105 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
       reply.send();
     },
   );
+
+  fastify.get<{
+    Params: { projectId: string };
+  }>(
+    "/projects/:projectId/runs",
+    {
+      preHandler: [fastify.verifyUser],
+    },
+    async (req, reply) => {
+      const runs = await getRunsForProject(fastify.db, req.params.projectId);
+
+      reply.send(runs);
+    },
+  );
+
+  fastify.get<{
+    Params: { projectId: string; runId: string };
+  }>(
+    "/projects/:projectId/runs/:runId",
+    {
+      preHandler: [fastify.verifyUser],
+    },
+    async (req, reply) => {
+      const baseline = await getActiveBaselineForProject(
+        fastify.db,
+        req.params.projectId,
+      );
+      const run = await getRunById(fastify.db, req.params.runId);
+      if (!run) {
+        return reply.status(401).send();
+      }
+
+      const presignedUrlService = new PresignedUrlService(s3);
+
+      const snapshotInputs = run.snapshots.map((s) => ({
+        original: s,
+        domain: mappers.snapshot.toDomain(s),
+      }));
+
+      const baselineInputs = baseline
+        ? baseline.run.snapshots.map((s) => ({
+            original: s,
+            domain: mappers.snapshot.toDomain(s),
+          }))
+        : [];
+
+      const snapshotUrls = await presignedUrlService.generateBatchPresignedUrls(
+        snapshotInputs.map((i) => i.domain),
+        { bucket: rootBucket },
+      );
+
+      const baselineUrls = baseline
+        ? await presignedUrlService.generateBatchPresignedUrls(
+            baselineInputs.map((i) => i.domain),
+            { bucket: rootBucket },
+          )
+        : [];
+
+      // can these be missing??
+      const snapshotsWithUrls: Snapshot[] = snapshotInputs.map((input, i) => ({
+        ...input.original,
+        imagePath: snapshotUrls[i]!,
+      }));
+
+      const baselineWithUrls: Snapshot[] = baselineInputs.map((input, i) => ({
+        ...input.original,
+        imagePath: baselineUrls[i]!,
+      }));
+
+      const results = mergeByName(baselineWithUrls, snapshotsWithUrls);
+
+      reply.send({ run, results });
+    },
+  );
 });
+
+function mergeByName(baseline: Snapshot[], snapshots: Snapshot[]): Result[] {
+  const baselineMap = new Map(baseline.map((i) => [i.name, i]));
+  const snapshotMap = new Map(snapshots.map((i) => [i.name, i]));
+
+  const allNames = new Set([...baselineMap.keys(), ...snapshotMap.keys()]);
+
+  return Array.from(allNames).map((name) => {
+    const baseline = baselineMap.get(name);
+    const snapshot = snapshotMap.get(name);
+
+    let result: Result = { name };
+    if (baseline) {
+      result.baseline = { snapshotId: baseline.id, url: baseline.imagePath };
+    }
+
+    if (snapshot) {
+      result.snapshot = { snapshotId: snapshot.id, url: snapshot.imagePath };
+    }
+
+    return result;
+  });
+}
+
+interface RunDto {
+  result: Result[];
+}

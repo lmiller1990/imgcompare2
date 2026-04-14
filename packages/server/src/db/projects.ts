@@ -11,3 +11,5 @@ export async function getProjectsForUser(db: DB, userId: string) {
 
   return q;
 }
+
+export type ProjectsForUser = Awaited<ReturnType<typeof getProjectsForUser>>;

@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import HelloWorld from "./components/HelloWorld.vue";
+import StartHere from "./components/StartHere.vue";
 </script>
 
 <template>
-  <RouterView />
+  <Suspense>
+    <StartHere />
+    <template #fallback> Loading... </template>
+  </Suspense>
 </template>

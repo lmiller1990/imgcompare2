@@ -5,6 +5,8 @@ import { createRouter, createWebHistory } from "vue-router";
 import SignUpView from "./views/SignUpView.vue";
 import LoginView from "./views/LoginView.vue";
 import ProjectsView from "./views/ProjectsView.vue";
+import RunsView from "./views/RunsView.vue";
+import RunView from "./views/RunView.vue";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -18,8 +20,18 @@ const router = createRouter({
       component: LoginView,
     },
     {
+      path: "/projects/:projectId/runs/:runId",
+      component: RunView,
+    },
+    {
       path: "/projects",
       component: ProjectsView,
+      children: [
+        {
+          path: ":projectId/runs",
+          component: RunsView,
+        },
+      ],
     },
   ],
 });
