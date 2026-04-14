@@ -12,6 +12,7 @@ import {
 import { and, eq } from "drizzle-orm";
 import { S3SnapshotService } from "../../services/s3.ts";
 import path from "node:path";
+import { getActiveBaselineForProject } from "../../db/queries.ts";
 
 const rootBucket = "lcm-au-imgcompare-screenshots";
 
@@ -137,7 +138,16 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
         });
       }
 
-      reply.send();
+      // find project baseline
+      const bl = await getActiveBaselineForProject(
+        fastify.db,
+        req.params.projectId,
+      );
+
+      if (!bl) {
+        // no baseline - UI shall prompt user to simply "accept all"
+        return reply.send();
+      }
     },
   );
 

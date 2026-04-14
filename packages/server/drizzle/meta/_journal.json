@@ -29,6 +29,13 @@
       "when": 1776135907183,
       "tag": "0003_strange_joystick",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1776138419804,
+      "tag": "0004_skinny_captain_cross",
+      "breakpoints": true
     }
   ]
 }

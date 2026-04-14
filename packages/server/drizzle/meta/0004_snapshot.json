@@ -1,6 +1,6 @@
 {
-  "id": "9b8d6449-f85a-4eb5-b323-467510899124",
-  "prevId": "2c16f4fd-d017-40da-85b3-77a94de86104",
+  "id": "f56a852a-eaee-4683-a73d-e8531f4d2ab3",
+  "prevId": "9b8d6449-f85a-4eb5-b323-467510899124",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -95,8 +95,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "snapshot_id": {
-          "name": "snapshot_id",
+        "base_snapshot_id": {
+          "name": "base_snapshot_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -117,11 +117,11 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "comparisons_snapshot_id_snapshots_id_fk": {
-          "name": "comparisons_snapshot_id_snapshots_id_fk",
+        "comparisons_base_snapshot_id_snapshots_id_fk": {
+          "name": "comparisons_base_snapshot_id_snapshots_id_fk",
           "tableFrom": "comparisons",
           "tableTo": "snapshots",
-          "columnsFrom": ["snapshot_id"],
+          "columnsFrom": ["base_snapshot_id"],
           "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
