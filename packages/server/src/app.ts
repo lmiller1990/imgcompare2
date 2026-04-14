@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import multipart from "@fastify/multipart";
 import fastifyJwt from "@fastify/jwt";
+import fastifyCookie from "@fastify/cookie";
 import "dotenv/config";
 import fastifyAuth from "@fastify/auth";
 import {
@@ -25,7 +26,11 @@ export async function createApp(
 
   const fastify = Fastify({ logger: { level: "debug" } })
     .register(dbPlugin, { db })
-    .register(fastifyJwt, { secret: "secret123" })
+    .register(fastifyCookie)
+    .register(fastifyJwt, {
+      secret: "secret123",
+      cookie: { cookieName: "token", signed: false },
+    })
     .register(fastifyAuth)
     .register(verifyUserPlugin)
     .register(verifyJwtPlugin)

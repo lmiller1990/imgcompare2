@@ -55,6 +55,8 @@ export const verifyUserPlugin = fp(async (fastify) => {
         .where(eq(users.email, email))
         .then((r) => r[0]);
 
+      console.log("USERRRRRRRRRRRRRR", user);
+
       if (!user) {
         return reply.code(401).send({ error: "Unauthorized" });
       }

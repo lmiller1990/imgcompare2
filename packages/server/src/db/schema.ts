@@ -113,6 +113,11 @@ export const runsRelations = relations(runs, ({ many }) => ({
 }));
 
 export const snapshotsRelations = relations(snapshots, ({ one }) => ({
+  run: one(runs, {
+    fields: [snapshots.runId],
+    references: [runs.id],
+  }),
+
   comparison: one(comparisons, {
     fields: [snapshots.id],
     references: [comparisons.baselineSnapshotId],
