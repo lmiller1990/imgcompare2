@@ -42,6 +42,28 @@ export const verifyProjectAccessPlugin = fp(async (fastify) => {
   );
 });
 
+export const verifyUserPlugin = fp(async (fastify) => {
+  fastify.decorate(
+    "verifyUser",
+    async function (request: FastifyRequest, reply: FastifyReply) {
+      await fastify.verifyJwt(request, reply);
+      const { email } = request.user as { email: string };
+
+      const user = await fastify.db
+        .select()
+        .from(users)
+        .where(eq(users.email, email))
+        .then((r) => r[0]);
+
+      if (!user) {
+        return reply.code(401).send({ error: "Unauthorized" });
+      }
+
+      request.dbUser = user;
+    },
+  );
+});
+
 export const verifyJwtPlugin = fp(async (fastify) => {
   fastify.decorate(
     "verifyJwt",

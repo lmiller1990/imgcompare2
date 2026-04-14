@@ -4,6 +4,8 @@ import { createApp } from "./app.ts";
 import * as schema from "../src/db/schema.ts";
 import { fileURLToPath } from "node:url";
 
+export type DB = ReturnType<typeof drizzle<typeof schema>>;
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const db = drizzle(process.env.DATABASE_URL!, { schema });
   const { fastify } = await createApp({ db });

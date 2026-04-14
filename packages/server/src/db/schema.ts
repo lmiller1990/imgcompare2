@@ -54,6 +54,36 @@ export const snapshots = pgTable("snapshots", {
   status: text("status").notNull(),
 });
 
+export const runApprovals = pgTable("run_approvals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  runId: uuid("run_id")
+    .notNull()
+    .references(() => runs.id, { onDelete: "cascade" }),
+  approvedByUserId: uuid("approved_by_user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "restrict" }),
+  approvedAt: timestamp("approved_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const baselines = pgTable("baselines", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  sourceRunId: uuid("source_run_id")
+    .notNull()
+    .references(() => runs.id, { onDelete: "restrict" }),
+  createdByUserId: uuid("created_by_user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "restrict" }),
+  isActive: boolean("is_active").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
 // export const usersRelations = relations(users, ({ many }) => ({
 //   ownedProjects: many(projects),
 // }))

@@ -3,7 +3,11 @@ import multipart from "@fastify/multipart";
 import fastifyJwt from "@fastify/jwt";
 import "dotenv/config";
 import fastifyAuth from "@fastify/auth";
-import { verifyJwtPlugin, verifyProjectAccessPlugin } from "./plugins/auth.ts";
+import {
+  verifyJwtPlugin,
+  verifyProjectAccessPlugin,
+  verifyUserPlugin,
+} from "./plugins/auth.ts";
 import { userRoutesPlugin } from "./routes/users.ts";
 import { projectRoutesPlugin } from "./routes/projects.ts";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
@@ -24,6 +28,7 @@ export async function createApp(
     .register(dbPlugin, { db })
     .register(fastifyJwt, { secret: "secret123" })
     .register(fastifyAuth)
+    .register(verifyUserPlugin)
     .register(verifyJwtPlugin)
     .register(verifyProjectAccessPlugin)
     .register(multipart)

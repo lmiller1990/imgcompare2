@@ -1,7 +1,13 @@
 import fp from "fastify-plugin";
 import { type MultipartFile } from "@fastify/multipart";
 import "dotenv/config";
-import { users, snapshots, runs, projects } from "../../db/schema.ts";
+import {
+  users,
+  snapshots,
+  runs,
+  projects,
+  runApprovals,
+} from "../../db/schema.ts";
 import { and, eq } from "drizzle-orm";
 import { S3SnapshotService } from "../../services/s3.ts";
 import path from "node:path";
@@ -12,7 +18,7 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
   fastify.post<{ Params: { projectId: string } }>(
     "/projects/:projectId/runs",
     {
-      preHandler: [fastify.verifyJwt],
+      preHandler: [fastify.verifyUser],
     },
     async (req, reply) => {
       const { email } = req.user as { email: string };
@@ -60,7 +66,7 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
   }>(
     "/projects/:projectId/run/:runId",
     {
-      preHandler: [fastify.verifyJwt],
+      preHandler: [fastify.verifyUser],
     },
     async (req, reply) => {
       const { id, projectId, ...rest } = req.body;
@@ -81,9 +87,8 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
 
   fastify.post<{ Params: { projectId: string; runId: string } }>(
     "/projects/:projectId/run/:runId/finalize",
-
     {
-      preHandler: [fastify.verifyJwt],
+      preHandler: [fastify.verifyUser],
     },
     async (req, reply) => {
       const snapshotService = new S3SnapshotService(
@@ -132,6 +137,20 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
         });
       }
 
+      reply.send();
+    },
+  );
+
+  fastify.post<{ Params: { projectId: string; runId: string } }>(
+    "/projects/:projectId/run/:runId/approve",
+    {
+      preHandler: [fastify.verifyUser, fastify.verifyProjectAccess],
+    },
+    async (req, reply) => {
+      await fastify.db.insert(runApprovals).values({
+        runId: req.params.runId,
+        approvedByUserId: req.dbUser.id,
+      });
       reply.send();
     },
   );

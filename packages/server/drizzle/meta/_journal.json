@@ -15,6 +15,13 @@
       "when": 1776074625964,
       "tag": "0001_robust_raza",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1776128596904,
+      "tag": "0002_big_sleeper",
+      "breakpoints": true
     }
   ]
 }
