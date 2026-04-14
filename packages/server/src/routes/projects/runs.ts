@@ -148,20 +148,18 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
       preHandler: [fastify.verifyUser, fastify.verifyProjectAccess],
     },
     async (req, reply) => {
-      const ra = await fastify.db
-        .insert(runApprovals)
-        .values({
-          runId: req.params.runId,
-          approvedByUserId: req.dbUser.id,
-        })
-        .returning()
-        .then((res) => res?.[0]!);
+      await fastify.db.insert(runApprovals).values({
+        runId: req.params.runId,
+        approvedByUserId: req.dbUser.id,
+      });
 
-      const bl = await fastify.db.insert(baselines).values({
+      await fastify.db.insert(baselines).values({
+        projectId: req.params.projectId,
         sourceRunId: req.params.runId,
         createdByUserId: req.dbUser.id,
         isActive: true,
       });
+
       reply.send();
     },
   );
