@@ -7,6 +7,8 @@ import LoginView from "./views/LoginView.vue";
 import ProjectsView from "./views/ProjectsView.vue";
 import RunsView from "./views/RunsView.vue";
 import RunView from "./views/RunView.vue";
+import { installKy } from "./composables/ky";
+import ProjectView from "./views/ProjectView.vue";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -14,14 +16,24 @@ const router = createRouter({
     {
       path: "/sign_up",
       component: SignUpView,
+      meta: {
+        public: true,
+      },
     },
     {
       path: "/login",
       component: LoginView,
+      meta: {
+        public: true,
+      },
     },
     {
       path: "/projects/:projectId/runs/:runId",
       component: RunView,
+    },
+    {
+      path: "/projects/:projectId",
+      component: ProjectView,
     },
     {
       path: "/projects",
@@ -36,4 +48,7 @@ const router = createRouter({
   ],
 });
 
-createApp(App).use(router).mount("#app");
+const app = createApp(App);
+app.use(router);
+app.use(installKy, router);
+app.mount("#app");

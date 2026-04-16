@@ -1,6 +1,7 @@
 import fp from "fastify-plugin";
 import { projects, users } from "../db/schema.ts";
 import { eq } from "drizzle-orm";
+import { getProjectWithRunsAndBaseline } from "../db/queries.ts";
 
 export const projectRoutesPlugin = fp(async (fastify) => {
   fastify.post<{ Body: { name: string } }>(
@@ -28,6 +29,25 @@ export const projectRoutesPlugin = fp(async (fastify) => {
         .returning();
 
       reply.code(201).send(inserted[0]);
+    },
+  );
+
+  fastify.get<{ Params: { projectId: string } }>(
+    "/projects/:projectId",
+    {
+      preHandler: [fastify.verifyJwt],
+    },
+    async (req, reply) => {
+      const project = await getProjectWithRunsAndBaseline(
+        fastify.db,
+        req.params.projectId,
+      );
+
+      if (!project) {
+        return reply.code(404).send({ error: "Not found" });
+      }
+
+      reply.send(project);
     },
   );
 });

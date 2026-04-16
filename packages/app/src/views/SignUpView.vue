@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import ky from "ky";
 import { ref } from "vue";
 import { useRouter } from "vue-router";
+import { useKy } from "../composables/ky";
 
+const ky = useKy();
 const email = ref("");
 const password = ref("");
 const error = ref("");

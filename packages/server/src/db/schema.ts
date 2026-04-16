@@ -99,16 +99,25 @@ export const comparisons = pgTable("comparisons", {
 
 export const projectsRelations = relations(projects, ({ many }) => ({
   baselines: many(baselines),
+  runs: many(runs),
 }));
 
 export const baselinesRelations = relations(baselines, ({ one }) => ({
+  project: one(projects, {
+    fields: [baselines.projectId],
+    references: [projects.id],
+  }),
   run: one(runs, {
     fields: [baselines.sourceRunId],
     references: [runs.id],
   }),
 }));
 
-export const runsRelations = relations(runs, ({ many }) => ({
+export const runsRelations = relations(runs, ({ one, many }) => ({
+  project: one(projects, {
+    fields: [runs.projectId],
+    references: [projects.id],
+  }),
   snapshots: many(snapshots),
 }));
 

@@ -17,6 +17,7 @@ import {
   getRunById,
   getRunsForProject,
   mappers,
+  patchRun,
 } from "../../db/queries.ts";
 import { PresignedUrlService } from "../../services/presignedUrls.ts";
 import type { Result, Snapshot } from "../../domain.ts";
@@ -145,6 +146,11 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
         });
       }
 
+      await patchRun(fastify.db, req.params.runId, {
+        completedAt: new Date(),
+        status: "completed",
+      });
+
       // find project baseline
       const bl = await getActiveBaselineForProject(
         fastify.db,
@@ -159,7 +165,7 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
   );
 
   fastify.post<{ Params: { projectId: string; runId: string } }>(
-    "/projects/:projectId/run/:runId/approve",
+    "/projects/:projectId/runs/:runId/approve",
     {
       preHandler: [fastify.verifyUser, fastify.verifyProjectAccess],
     },
@@ -196,6 +202,7 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
 
   fastify.get<{
     Params: { projectId: string; runId: string };
+    Reply: RunWithResultDto | undefined;
   }>(
     "/projects/:projectId/runs/:runId",
     {
@@ -208,7 +215,7 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
       );
       const run = await getRunById(fastify.db, req.params.runId);
       if (!run) {
-        return reply.status(401).send();
+        return reply.status(401).send(undefined);
       }
 
       const presignedUrlService = new PresignedUrlService(s3);
@@ -278,6 +285,7 @@ function mergeByName(baseline: Snapshot[], snapshots: Snapshot[]): Result[] {
   });
 }
 
-interface RunDto {
-  result: Result[];
+export interface RunWithResultDto {
+  results: Result[];
+  run: Awaited<ReturnType<typeof getRunById>>;
 }

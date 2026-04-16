@@ -24,6 +24,27 @@ export async function getActiveBaselineForProject(db: DB, projectId: string) {
   return bl;
 }
 
+export async function getProjectWithRunsAndBaseline(db: DB, projectId: string) {
+  return db.query.projects.findFirst({
+    where: (p, { eq }) => eq(p.id, projectId),
+    with: {
+      runs: {
+        with: {
+          snapshots: {
+            with: {
+              comparison: true,
+            },
+          },
+        },
+      },
+      baselines: {
+        where: (b, { eq }) => eq(b.isActive, true),
+        limit: 1,
+      },
+    },
+  });
+}
+
 export async function getRunsForProject(db: DB, projectId: string) {
   const bl = await db.query.runs.findMany({
     where: (b, { eq, and }) => {
@@ -56,6 +77,14 @@ export async function getRunById(db: DB, runId: string) {
   });
 }
 
+export async function patchRun(
+  db: DB,
+  runId: string,
+  params: Partial<typeof runs.$inferInsert>,
+) {
+  await db.update(runs).set(params).where(eq(runs.id, runId));
+}
+
 type SnapshotRow = typeof snapshots.$inferSelect;
 type RunRow = typeof runs.$inferSelect;
 
@@ -79,3 +108,6 @@ export const mappers = {
 };
 
 export type RunsForProject = Awaited<ReturnType<typeof getRunsForProject>>;
+export type ProjectWithRunsAndBaseline = Awaited<
+  ReturnType<typeof getProjectWithRunsAndBaseline>
+>;

@@ -1,18 +1,53 @@
 <script setup lang="ts">
-import ky from "ky";
 import { useRoute } from "vue-router";
+import { useKy } from "../composables/ky";
+import type { RunWithResultDto } from "@packages/server/src/routes/projects/runs";
+import { ref } from "vue";
 
-//
 const route = useRoute();
+const ky = useKy();
 
-const res = await ky.get(
+const res = await ky.get<RunWithResultDto>(
   `/api/projects/${route.params.projectId}/runs/${route.params.runId}`,
 );
 
-console.log(await res.json());
+const runWithResults = ref<RunWithResultDto>(await res.json());
+
+async function handleApprove() {
+  await ky.post<RunWithResultDto>(
+    `/api/projects/${route.params.projectId}/runs/${route.params.runId}/approve`,
+  );
+}
 </script>
 
 <template>
-  hello friend
-  <!--  -->
+  <form @submit.prevent="handleApprove">
+    <button class="btn btn-success">Approve</button>
+  </form>
+  <div
+    class="overflow-x-auto rounded-box border border-base-content/5 bg-base-100 max-w-[80%]"
+  >
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Baseline</th>
+          <th>Incoming</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="result of runWithResults.results" :key="result.name">
+          <td>
+            <img v-if="result.baseline?.url" :src="result.baseline.url" />
+            <div v-else>
+              No baseline. Approving will set the snapshot to the baseline.
+            </div>
+          </td>
+          <td>
+            <img v-if="result.snapshot?.url" :src="result.snapshot.url" />
+            <div v-else>Snapshot missing! Tested deleted?</div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </template>

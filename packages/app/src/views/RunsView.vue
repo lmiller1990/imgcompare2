@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { RunsForProject } from "@packages/server/src/db/queries";
-import ky from "ky";
 import { ref } from "vue";
 import { useRoute } from "vue-router";
+import { useKy } from "../composables/ky";
 
+const ky = useKy();
 const runs = ref<RunsForProject>();
 const route = useRoute();
 

@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import ky from "ky";
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import type { ProjectsForUser } from "@packages/server/src/db/projects";
+import { useKy } from "../composables/ky";
+
+const ky = useKy();
 
 async function me() {
   const res = await ky.get<{ projects: ProjectsForUser }>("/api/me");
