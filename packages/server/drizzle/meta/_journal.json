@@ -5,36 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1775991946564,
-      "tag": "0000_living_mephisto",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1776074625964,
-      "tag": "0001_robust_raza",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1776128596904,
-      "tag": "0002_big_sleeper",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1776135907183,
-      "tag": "0003_strange_joystick",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1776138419804,
-      "tag": "0004_skinny_captain_cross",
+      "when": 1776343496049,
+      "tag": "0000_foamy_whiplash",
       "breakpoints": true
     }
   ]

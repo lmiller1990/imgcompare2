@@ -13,7 +13,7 @@ export async function getActiveBaselineForProject(db: DB, projectId: string) {
         with: {
           snapshots: {
             with: {
-              comparison: true,
+              baselineComparisons: true,
             },
           },
         },
@@ -32,7 +32,7 @@ export async function getProjectWithRunsAndBaseline(db: DB, projectId: string) {
         with: {
           snapshots: {
             with: {
-              comparison: true,
+              baselineComparisons: true,
             },
           },
         },
@@ -53,7 +53,7 @@ export async function getRunsForProject(db: DB, projectId: string) {
     with: {
       snapshots: {
         with: {
-          comparison: true,
+          baselineComparisons: true,
         },
       },
     },
@@ -63,18 +63,24 @@ export async function getRunsForProject(db: DB, projectId: string) {
 }
 
 export async function getRunById(db: DB, runId: string) {
-  return db.query.runs.findFirst({
+  const run = await db.query.runs.findFirst({
     where: (b, { eq, and }) => {
       return eq(b.id, runId);
     },
     with: {
       snapshots: {
         with: {
-          comparison: true,
+          baselineComparisons: true,
         },
       },
     },
   });
+
+  if (!run) {
+    throw new Error(`Could not find run with id ${runId}`);
+  }
+
+  return run;
 }
 
 export async function patchRun(

@@ -10,7 +10,7 @@ import {
   baselines,
 } from "../../db/schema.ts";
 import { and, eq } from "drizzle-orm";
-import { s3, S3SnapshotService } from "../../services/s3.ts";
+import { rootBucket, s3, S3SnapshotService } from "../../services/s3.ts";
 import path from "node:path";
 import {
   getActiveBaselineForProject,
@@ -21,8 +21,9 @@ import {
 } from "../../db/queries.ts";
 import { PresignedUrlService } from "../../services/presignedUrls.ts";
 import type { Result, Snapshot } from "../../domain.ts";
+import { Queue } from "bullmq";
 
-const rootBucket = "lcm-au-imgcompare-screenshots";
+const queue = new Queue<{ result: Result }>("diff");
 
 export const projectRunsRoutesPlugin = fp(async (fastify) => {
   fastify.post<{ Params: { projectId: string } }>(
@@ -158,8 +159,22 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
       );
 
       if (!bl) {
+        req.log.debug("No baseline - skipping comparison!");
         // no baseline - UI shall prompt user to simply "accept all"
         return reply.send();
+      }
+
+      const run = await getRunById(fastify.db, req.params.runId);
+      // comparison time
+      const blSnapshots = bl.run.snapshots.map(mappers.snapshot.toDomain);
+      const incomingSnapshots = run.snapshots.map(mappers.snapshot.toDomain);
+      const results = mergeByName(blSnapshots, incomingSnapshots);
+
+      for (const result of results) {
+        req.log.child({ result }).debug("Running comparison");
+        queue.add("comparison", {
+          result,
+        });
       }
     },
   );

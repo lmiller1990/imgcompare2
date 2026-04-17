@@ -84,18 +84,24 @@ export const baselines = pgTable("baselines", {
     .notNull(),
 });
 
-export const comparisons = pgTable("comparisons", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  baselineSnapshotId: uuid("base_snapshot_id")
-    .notNull()
-    .references(() => snapshots.id, { onDelete: "restrict" }),
+export const comparisons = pgTable(
+  "comparisons",
+  {
+    baselineSnapshotId: uuid("baseline_snapshot_id")
+      .notNull()
+      .references(() => snapshots.id, { onDelete: "restrict" }),
+    currentSnapshotId: uuid("current_snapshot_id")
+      .notNull()
+      .references(() => snapshots.id, { onDelete: "restrict" }),
 
-  imageS3Path: text("image_s3_path").notNull(),
+    imageS3Path: text("image_s3_path").notNull(),
 
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.baselineSnapshotId, t.currentSnapshotId] })],
+);
 
 export const projectsRelations = relations(projects, ({ many }) => ({
   baselines: many(baselines),
@@ -121,14 +127,24 @@ export const runsRelations = relations(runs, ({ one, many }) => ({
   snapshots: many(snapshots),
 }));
 
-export const snapshotsRelations = relations(snapshots, ({ one }) => ({
+export const snapshotsRelations = relations(snapshots, ({ one, many }) => ({
   run: one(runs, {
     fields: [snapshots.runId],
     references: [runs.id],
   }),
+  baselineComparisons: many(comparisons, { relationName: "baselineSnapshot" }),
+  currentComparisons: many(comparisons, { relationName: "currentSnapshot" }),
+}));
 
-  comparison: one(comparisons, {
-    fields: [snapshots.id],
-    references: [comparisons.baselineSnapshotId],
+export const comparisonsRelations = relations(comparisons, ({ one }) => ({
+  baselineSnapshot: one(snapshots, {
+    relationName: "baselineSnapshot",
+    fields: [comparisons.baselineSnapshotId],
+    references: [snapshots.id],
+  }),
+  currentSnapshot: one(snapshots, {
+    relationName: "currentSnapshot",
+    fields: [comparisons.currentSnapshotId],
+    references: [snapshots.id],
   }),
 }));
