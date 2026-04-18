@@ -91,7 +91,9 @@ export async function getProjectWithRunsAndBaseline(db: DB, projectId: string) {
 }
 
 export async function getRunsForProject(db: DB, projectId: string) {
-  const bl = await db.query.runs.findMany({
+  const baseline = await getProjectWithRunsAndBaseline(db, projectId);
+
+  const runs = await db.query.runs.findMany({
     where: (b, { eq, and }) => {
       return and(eq(b.projectId, projectId));
     },
@@ -104,7 +106,7 @@ export async function getRunsForProject(db: DB, projectId: string) {
     },
   });
 
-  return bl;
+  return runs.map();
 }
 
 export async function getRunById(db: DB, runId: string) {
