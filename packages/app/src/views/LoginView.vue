@@ -16,7 +16,7 @@ async function login() {
     await ky.post("/api/login", {
       json: { email: email.value, password: password.value },
     });
-    router.push("/");
+    router.push("/projects");
   } catch {
     error.value = "Invalid email or password.";
   }
@@ -24,6 +24,7 @@ async function login() {
 </script>
 
 <template>
+  <form @submit.prevent="login"></form>
   <fieldset
     class="fieldset bg-base-200 border-base-300 rounded-box w-xs border p-4"
   >
@@ -42,6 +43,6 @@ async function login() {
 
     <p v-if="error" class="text-error text-sm mt-2">{{ error }}</p>
 
-    <button class="btn btn-neutral mt-4" @click="login">Login</button>
+    <button class="btn btn-neutral mt-4">Login</button>
   </fieldset>
 </template>
