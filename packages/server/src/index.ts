@@ -9,11 +9,36 @@ import IORedis from "ioredis";
 import type { Result } from "./domain.ts";
 import { PNG } from "pngjs";
 import pixelmatch from "pixelmatch";
+import pino from "pino";
+import { rootBucket, S3SnapshotService } from "./services/s3.ts";
+import { insertComparison } from "./db/queries.ts";
+import { randomUUID } from "node:crypto";
+import { Readable } from "node:stream";
 
 export type DB = ReturnType<typeof drizzle<typeof schema>>;
 
+const logger = pino({ level: "debug" });
+
+const db =
+  process.argv[1] === fileURLToPath(import.meta.url)
+    ? drizzle(process.env.DATABASE_URL!, { schema })
+    : null;
+
+function getDb(): DB {
+  if (!db) {
+    throw new Error(`DB should not be undefined when running as a module.`);
+  }
+  return db;
+}
+
+export const services = {
+  snapshotService: new S3SnapshotService(rootBucket, logger),
+} as const;
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const db = drizzle(process.env.DATABASE_URL!, { schema });
+  if (!db) {
+    throw new Error(`DB should not be undefined when running as a module.`);
+  }
   const { fastify } = await createApp({ db });
 
   try {
@@ -26,18 +51,16 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 
 const connection = new IORedis.default({ maxRetriesPerRequest: null });
 
-import pino from "pino";
-import { rootBucket, S3SnapshotService } from "./services/s3.ts";
+export interface SnapshotComparisonWorkerPayload {
+  result: Result;
+  runId: string;
+}
 
-const logger = pino({ level: "debug" });
-
-const worker = new Worker<{ result: Result }>(
+const worker = new Worker<SnapshotComparisonWorkerPayload>(
   "diff",
   async (job) => {
-    const snapshotService = new S3SnapshotService(rootBucket, logger);
     const base = job.data.result.baseline;
     const incoming = job.data.result.snapshot;
-    // console.log({ "job.data": job.data });
     logger.child({ "job.data": job.data }).debug(`Processing diff`);
 
     console.log({ base, incoming });
@@ -50,8 +73,8 @@ const worker = new Worker<{ result: Result }>(
 
     try {
       const [baseStream, incomingStream] = await Promise.all([
-        snapshotService.get(base.url),
-        snapshotService.get(incoming.url),
+        services.snapshotService.get(base.imagePath),
+        services.snapshotService.get(incoming.imagePath),
       ]);
 
       const img1 = PNG.sync.read(baseStream);
@@ -66,6 +89,24 @@ const worker = new Worker<{ result: Result }>(
 
       logger.debug("writing output png");
       await fs.writeFile("out.png", PNG.sync.write(diff));
+      const uuid = randomUUID();
+
+      const key = `${job.data.runId}/${uuid}.png`;
+      await services.snapshotService.store(key, {
+        file: Readable.from(PNG.sync.write(diff)),
+        mimetype: "image/png",
+      });
+
+      const comparison = await insertComparison(getDb(), {
+        id: uuid,
+        baselineSnapshotId: base.id,
+        currentSnapshotId: incoming.id,
+        imageS3Path: key,
+      });
+
+      logger.debug(
+        `Stored comparison for ${base.id} and ${incoming.id} in ${key} with id ${comparison.id}`,
+      );
     } catch (e) {
       logger.error(`Error.. ${e}`);
     }

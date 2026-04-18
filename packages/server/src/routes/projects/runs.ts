@@ -22,8 +22,9 @@ import {
 import { PresignedUrlService } from "../../services/presignedUrls.ts";
 import type { Result, Snapshot } from "../../domain.ts";
 import { Queue } from "bullmq";
+import { services, type SnapshotComparisonWorkerPayload } from "../../index.ts";
 
-const queue = new Queue<{ result: Result }>("diff");
+const queue = new Queue<SnapshotComparisonWorkerPayload>("diff");
 
 export const projectRunsRoutesPlugin = fp(async (fastify) => {
   fastify.post<{ Params: { projectId: string } }>(
@@ -102,11 +103,7 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
       preHandler: [fastify.verifyUser],
     },
     async (req, reply) => {
-      const snapshotService = new S3SnapshotService(
-        path.join(rootBucket),
-        req.log,
-      );
-      await snapshotService.ensureDirExists();
+      await services.snapshotService.ensureDirExists();
 
       let manifest: string[] = [];
       const files: MultipartFile[] = [];
@@ -136,7 +133,7 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
 
         req.log.debug(`Received screenshot ${file.filename}`);
         const imageS3Path = `${req.params.runId}/${file.filename}`;
-        await snapshotService.store(imageS3Path, file);
+        await services.snapshotService.store(imageS3Path, file);
         req.log.child({ file: file.filename }).debug("Uploaded file");
 
         await fastify.db.insert(snapshots).values({
@@ -174,6 +171,7 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
         req.log.child({ result }).debug("Running comparison");
         queue.add("comparison", {
           result,
+          runId: req.params.runId,
         });
       }
     },
@@ -288,12 +286,13 @@ function mergeByName(baseline: Snapshot[], snapshots: Snapshot[]): Result[] {
     const snapshot = snapshotMap.get(name);
 
     let result: Result = { name };
+
     if (baseline) {
-      result.baseline = { snapshotId: baseline.id, url: baseline.imagePath };
+      result.baseline = baseline;
     }
 
     if (snapshot) {
-      result.snapshot = { snapshotId: snapshot.id, url: snapshot.imagePath };
+      result.snapshot = snapshot;
     }
 
     return result;

@@ -8,12 +8,6 @@ export interface Snapshot {
 
 export interface Result {
   name: string;
-  baseline?: {
-    snapshotId: string;
-    url: string;
-  };
-  snapshot?: {
-    snapshotId: string;
-    url: string;
-  };
+  baseline?: Snapshot;
+  snapshot?: Snapshot;
 }

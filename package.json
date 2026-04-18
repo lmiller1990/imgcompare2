@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "fmt": "pnpm prettier . --write"
+    "fmt": "pnpm prettier . --write",
+    "dev": "pnpm -r --parallel run dev"
   },
   "keywords": [],
   "author": "",

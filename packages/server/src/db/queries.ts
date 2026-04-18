@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import type { DB } from "../index.ts";
-import { baselines, runs, snapshots } from "./schema.ts";
+import { baselines, comparisons, runs, snapshots } from "./schema.ts";
 import type { Snapshot } from "../domain.ts";
 
 export async function getActiveBaselineForProject(db: DB, projectId: string) {
@@ -93,6 +93,14 @@ export async function patchRun(
 
 type SnapshotRow = typeof snapshots.$inferSelect;
 type RunRow = typeof runs.$inferSelect;
+
+export async function insertComparison(
+  db: DB,
+  params: typeof comparisons.$inferInsert,
+) {
+  const record = await db.insert(comparisons).values(params).returning();
+  return record[0]!;
+}
 
 export const mappers = {
   run: {

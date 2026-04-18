@@ -17,8 +17,14 @@ export const s3 = new S3Client({
   profile: "terraform",
 });
 
+interface Uploadable {
+  mimetype: string;
+  file: Readable;
+}
+
 interface SnapshotService {
-  store(key: string, file: MultipartFile): Promise<void>;
+  // store(key: string, file: MultipartFile): Promise<void>;
+  store<T extends Uploadable>(key: string, file: T): Promise<void>;
   ensureDirExists(): Promise<void>;
   get(key: string): Promise<Buffer>;
 }
@@ -40,7 +46,7 @@ export class S3SnapshotService implements SnapshotService {
     }
   }
 
-  async store(key: string, data: MultipartFile) {
+  async store<T extends Uploadable>(key: string, data: T) {
     await new Upload({
       client: s3,
       params: {

@@ -6,6 +6,7 @@ import {
   uuid,
   boolean,
   primaryKey,
+  unique,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -87,6 +88,7 @@ export const baselines = pgTable("baselines", {
 export const comparisons = pgTable(
   "comparisons",
   {
+    id: uuid("id").primaryKey().defaultRandom(),
     baselineSnapshotId: uuid("baseline_snapshot_id")
       .notNull()
       .references(() => snapshots.id, { onDelete: "restrict" }),
@@ -100,7 +102,7 @@ export const comparisons = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (t) => [primaryKey({ columns: [t.baselineSnapshotId, t.currentSnapshotId] })],
+  (t) => [unique().on(t.baselineSnapshotId, t.currentSnapshotId)],
 );
 
 export const projectsRelations = relations(projects, ({ many }) => ({

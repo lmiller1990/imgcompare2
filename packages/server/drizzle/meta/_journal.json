@@ -8,6 +8,20 @@
       "when": 1776343496049,
       "tag": "0000_foamy_whiplash",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1776502079411,
+      "tag": "0001_fuzzy_star_brand",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1776502475560,
+      "tag": "0002_fuzzy_bloodstrike",
+      "breakpoints": true
     }
   ]
 }

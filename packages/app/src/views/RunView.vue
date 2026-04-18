@@ -37,13 +37,19 @@ async function handleApprove() {
       <tbody>
         <tr v-for="result of runWithResults.results" :key="result.name">
           <td>
-            <img v-if="result.baseline?.url" :src="result.baseline.url" />
+            <img
+              v-if="result.baseline?.imagePath"
+              :src="result.baseline.imagePath"
+            />
             <div v-else>
               No baseline. Approving will set the snapshot to the baseline.
             </div>
           </td>
           <td>
-            <img v-if="result.snapshot?.url" :src="result.snapshot.url" />
+            <img
+              v-if="result.snapshot?.imagePath"
+              :src="result.snapshot.imagePath"
+            />
             <div v-else>Snapshot missing! Tested deleted?</div>
           </td>
         </tr>
