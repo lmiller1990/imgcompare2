@@ -7,6 +7,7 @@ import {
   boolean,
   primaryKey,
   unique,
+  numeric,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -97,6 +98,11 @@ export const comparisons = pgTable(
       .references(() => snapshots.id, { onDelete: "restrict" }),
 
     imageS3Path: text("image_s3_path").notNull(),
+    difference: numeric({
+      precision: 5,
+      scale: 4,
+      mode: "number",
+    }).notNull(),
 
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()

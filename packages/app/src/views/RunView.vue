@@ -13,6 +13,10 @@ const res = await ky.get<RunWithResultDto>(
 
 const runWithResults = ref<RunWithResultDto>(await res.json());
 
+function formatPercent(value: number) {
+  return (value * 100).toFixed(2) + "%";
+}
+
 async function handleApprove() {
   await ky.post<RunWithResultDto>(
     `/api/projects/${route.params.projectId}/runs/${route.params.runId}/approve`,
@@ -32,10 +36,14 @@ async function handleApprove() {
         <tr>
           <th>Baseline</th>
           <th>Incoming</th>
+          <th>Comparison</th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="result of runWithResults.results" :key="result.name">
+        <tr
+          v-for="result of runWithResults.reviewableResult"
+          :key="result.name"
+        >
           <td>
             <img
               v-if="result.baseline?.imagePath"
@@ -45,12 +53,22 @@ async function handleApprove() {
               No baseline. Approving will set the snapshot to the baseline.
             </div>
           </td>
+
           <td>
             <img
               v-if="result.snapshot?.imagePath"
               :src="result.snapshot.imagePath"
             />
             <div v-else>Snapshot missing! Tested deleted?</div>
+          </td>
+
+          <td>
+            <div v-if="result.comparison?.diff">
+              <img :src="result.comparison.diff.imagePath" />
+              Percentage diff:
+              {{ formatPercent(result.comparison?.diff.difference) }}
+            </div>
+            <div v-else>No diff</div>
           </td>
         </tr>
       </tbody>

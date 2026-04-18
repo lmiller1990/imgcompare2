@@ -10,15 +10,12 @@ export class PresignedUrlService {
     //
   }
 
-  async generateBatchPresignedUrls(
-    snapshots: Snapshot[],
-    config: { bucket: string },
-  ) {
+  async generateBatchPresignedUrls(keys: string[], config: { bucket: string }) {
     return Promise.all(
-      snapshots.map((snapshot) => {
+      keys.map((key) => {
         const command = new GetObjectCommand({
           Bucket: config.bucket,
-          Key: snapshot.imagePath,
+          Key: key,
         });
 
         return getSignedUrl(this.s3Client, command, {

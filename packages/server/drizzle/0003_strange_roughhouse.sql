@@ -1,0 +1,1 @@
+ALTER TABLE "comparisons" ADD COLUMN "difference" numeric(5, 4);

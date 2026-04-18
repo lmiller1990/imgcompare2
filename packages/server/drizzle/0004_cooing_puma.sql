@@ -1,0 +1,1 @@
+ALTER TABLE "comparisons" ALTER COLUMN "difference" SET NOT NULL;

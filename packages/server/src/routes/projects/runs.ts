@@ -13,6 +13,7 @@ import { and, eq } from "drizzle-orm";
 import { rootBucket, s3, S3SnapshotService } from "../../services/s3.ts";
 import path from "node:path";
 import {
+  findComparisonsForCompleteResults,
   getActiveBaselineForProject,
   getRunById,
   getRunsForProject,
@@ -20,9 +21,20 @@ import {
   patchRun,
 } from "../../db/queries.ts";
 import { PresignedUrlService } from "../../services/presignedUrls.ts";
-import type { Result, Snapshot } from "../../domain.ts";
+import {
+  isCompleteResult,
+  type Comparison,
+  type Result,
+  type Snapshot,
+} from "../../domain.ts";
 import { Queue } from "bullmq";
-import { services, type SnapshotComparisonWorkerPayload } from "../../index.ts";
+import {
+  getDb,
+  logger,
+  services,
+  type SnapshotComparisonWorkerPayload,
+} from "../../index.ts";
+import assert from "node:assert";
 
 const queue = new Queue<SnapshotComparisonWorkerPayload>("diff");
 
@@ -209,7 +221,7 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
     async (req, reply) => {
       const runs = await getRunsForProject(fastify.db, req.params.projectId);
 
-      reply.send(runs);
+      reply.send(runs.toSorted((x, y) => +y.createdAt - +x.createdAt));
     },
   );
 
@@ -246,13 +258,13 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
         : [];
 
       const snapshotUrls = await presignedUrlService.generateBatchPresignedUrls(
-        snapshotInputs.map((i) => i.domain),
+        snapshotInputs.map((i) => i.domain.imagePath),
         { bucket: rootBucket },
       );
 
       const baselineUrls = baseline
         ? await presignedUrlService.generateBatchPresignedUrls(
-            baselineInputs.map((i) => i.domain),
+            baselineInputs.map((i) => i.domain.imagePath),
             { bucket: rootBucket },
           )
         : [];
@@ -269,11 +281,78 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
       }));
 
       const results = mergeByName(baselineWithUrls, snapshotsWithUrls);
+      const comparisons = await mergeComparisonForCompletedResults(results);
+      const presigned = await presignedUrlService.generateBatchPresignedUrls(
+        comparisons.map((x) => x.diff.imagePath),
+        { bucket: rootBucket },
+      );
 
-      reply.send({ run, results });
+      comparisons.forEach((comparison, i) => {
+        if (!comparison.diff) {
+          throw new Error("Comparison always expected to have `diff`");
+        }
+        if (!presigned[i]) {
+          throw new Error("Failed to generate presigned URL");
+        }
+        comparison.diff.imagePath = presigned[i];
+      });
+
+      const reviewableResult = createReviewableRun(results, comparisons);
+
+      reply.send({
+        run,
+        reviewableResult,
+      });
     },
   );
 });
+
+type NullableComparison = Partial<Comparison> & { name: string };
+
+export interface ReviewableResult {
+  name: string;
+  baseline: Snapshot | undefined;
+  snapshot: Snapshot | undefined;
+  comparison: Comparison | undefined;
+}
+
+function createReviewableRun(
+  results: Result[],
+  comparisons: Comparison[],
+): ReviewableResult[] {
+  const comparisonByName = new Map<string, Comparison>();
+
+  for (const c of comparisons) {
+    comparisonByName.set(c.baseline.name, c);
+  }
+
+  return results.map((r) => {
+    const comparison = comparisonByName.get(r.name);
+
+    return {
+      name: r.name,
+      baseline: r.baseline,
+      snapshot: r.snapshot,
+      comparison,
+    };
+  });
+}
+
+async function mergeComparisonForCompletedResults(
+  results: Result[],
+): Promise<Comparison[]> {
+  const completeResults = results.filter(isCompleteResult);
+  const tuples = completeResults.map(
+    (x) => [x.baseline.id, x.snapshot.id] as [string, string],
+  );
+  logger
+    .child({ tuples })
+    .debug("findComparisonsForCompleteResults with tuplse");
+  if (!tuples.length) {
+    return [];
+  }
+  return await findComparisonsForCompleteResults(getDb(), tuples);
+}
 
 function mergeByName(baseline: Snapshot[], snapshots: Snapshot[]): Result[] {
   const baselineMap = new Map(baseline.map((i) => [i.name, i]));
@@ -300,6 +379,6 @@ function mergeByName(baseline: Snapshot[], snapshots: Snapshot[]): Result[] {
 }
 
 export interface RunWithResultDto {
-  results: Result[];
+  reviewableResult: ReviewableResult[];
   run: Awaited<ReturnType<typeof getRunById>>;
 }

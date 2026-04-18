@@ -17,14 +17,14 @@ import { Readable } from "node:stream";
 
 export type DB = ReturnType<typeof drizzle<typeof schema>>;
 
-const logger = pino({ level: "debug" });
+export const logger = pino({ level: "debug" });
 
 const db =
   process.argv[1] === fileURLToPath(import.meta.url)
-    ? drizzle(process.env.DATABASE_URL!, { schema })
+    ? drizzle(process.env.DATABASE_URL!, { schema, logger: true })
     : null;
 
-function getDb(): DB {
+export function getDb(): DB {
   if (!db) {
     throw new Error(`DB should not be undefined when running as a module.`);
   }
@@ -83,11 +83,17 @@ const worker = new Worker<SnapshotComparisonWorkerPayload>(
       const diff = new PNG({ width, height });
 
       logger.debug("comparing pixels");
-      pixelmatch(img1.data, img2.data, diff.data, width, height, {
-        threshold: 0.1,
-      });
+      const pxDiff = pixelmatch(
+        img1.data,
+        img2.data,
+        diff.data,
+        width,
+        height,
+        {
+          threshold: 0.1,
+        },
+      );
 
-      logger.debug("writing output png");
       await fs.writeFile("out.png", PNG.sync.write(diff));
       const uuid = randomUUID();
 
@@ -101,6 +107,7 @@ const worker = new Worker<SnapshotComparisonWorkerPayload>(
         id: uuid,
         baselineSnapshotId: base.id,
         currentSnapshotId: incoming.id,
+        difference: pxDiff / (width * height),
         imageS3Path: key,
       });
 
