@@ -1,3 +1,15 @@
+export interface Run {
+  id: string;
+  status: string;
+  createdAt: Date;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  runs: Run[];
+}
+
 export interface Snapshot {
   id: string;
   runId: string;

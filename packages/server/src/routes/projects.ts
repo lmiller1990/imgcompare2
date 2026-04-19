@@ -32,22 +32,22 @@ export const projectRoutesPlugin = fp(async (fastify) => {
     },
   );
 
-  fastify.get<{ Params: { projectId: string } }>(
-    "/projects/:projectId",
-    {
-      preHandler: [fastify.verifyJwt],
-    },
-    async (req, reply) => {
-      const project = await getProjectWithRunsAndBaseline(
-        fastify.db,
-        req.params.projectId,
-      );
+  // fastify.get<{ Params: { projectId: string } }>(
+  //   "/projects/:projectId",
+  //   {
+  //     preHandler: [fastify.verifyJwt],
+  //   },
+  //   async (req, reply) => {
+  //     const project = await getProjectWithRunsAndBaseline(
+  //       fastify.db,
+  //       req.params.projectId,
+  //     );
 
-      if (!project) {
-        return reply.code(404).send({ error: "Not found" });
-      }
+  //     if (!project) {
+  //       return reply.code(404).send({ error: "Not found" });
+  //     }
 
-      reply.send(project);
-    },
-  );
+  //     reply.send(project);
+  //   },
+  // );
 });

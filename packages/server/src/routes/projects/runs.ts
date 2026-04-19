@@ -15,9 +15,11 @@ import path from "node:path";
 import {
   findComparisonsForCompleteResults,
   getActiveBaselineForProject,
+  getProjectWithRunsAndBaseline,
   getRunById,
   getRunsForProject,
   mappers,
+  mapRun,
   patchRun,
 } from "../../db/queries.ts";
 import { PresignedUrlService } from "../../services/presignedUrls.ts";
@@ -25,6 +27,7 @@ import {
   isCompleteResult,
   type Comparison,
   type Result,
+  type Run,
   type Snapshot,
 } from "../../domain.ts";
 import { Queue } from "bullmq";
@@ -213,15 +216,29 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
 
   fastify.get<{
     Params: { projectId: string };
+    Reply: ProjectView;
   }>(
     "/projects/:projectId/runs",
     {
       preHandler: [fastify.verifyUser],
     },
     async (req, reply) => {
+      const project = await getProjectWithRunsAndBaseline(
+        fastify.db,
+        req.params.projectId,
+      );
       const runs = await getRunsForProject(fastify.db, req.params.projectId);
+      const activeBaseline = await getActiveBaselineForProject(
+        fastify.db,
+        req.params.projectId,
+      );
 
-      reply.send(runs.toSorted((x, y) => +y.createdAt - +x.createdAt));
+      const sortedRuns = runs.toSorted((x, y) => +y.createdAt - +x.createdAt);
+      reply.send({
+        name: project!.name,
+        runs: sortedRuns,
+        activeBaseline: activeBaseline ? mapRun(activeBaseline.run) : undefined,
+      });
     },
   );
 
@@ -306,6 +323,12 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
     },
   );
 });
+
+export interface ProjectView {
+  name: string;
+  activeBaseline: Run | undefined;
+  runs: Run[];
+}
 
 type NullableComparison = Partial<Comparison> & { name: string };
 

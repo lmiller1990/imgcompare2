@@ -23,7 +23,7 @@ runs.value = await res.json();
         <tr>
           <th>ID</th>
           <th>Status</th>
-          <th>Completed At</th>
+          <th>Created At</th>
         </tr>
       </thead>
       <tbody>
@@ -37,7 +37,7 @@ runs.value = await res.json();
             </RouterLink>
           </td>
           <td>{{ run.status }}</td>
-          <td>{{ run.completedAt }}</td>
+          <td>{{ run.createdAt }}</td>
         </tr>
       </tbody>
     </table>

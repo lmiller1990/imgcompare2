@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import type { ProjectWithRunsAndBaseline } from "@packages/server/src/db/queries";
 import { ref } from "vue";
 import { useRoute } from "vue-router";
 import { useKy } from "../composables/ky";
+import type { ProjectView } from "@packages/server/src/routes/projects/runs";
 
 const ky = useKy();
-const project = ref<ProjectWithRunsAndBaseline>();
+const project = ref<ProjectView>();
 const route = useRoute();
 
-const res = await ky.get<ProjectWithRunsAndBaseline>(
-  `/api/projects/${route.params.projectId}`,
+const res = await ky.get<ProjectView>(
+  `/api/projects/${route.params.projectId}/runs`,
 );
 project.value = await res.json();
 </script>
@@ -18,11 +18,11 @@ project.value = await res.json();
   <div v-if="project">
     <h1 class="text-2xl font-bold mb-4">{{ project.name }}</h1>
 
-    <div class="mb-6" v-if="project.baselines[0]">
+    <div class="mb-6" v-if="project.activeBaseline">
       <h2 class="text-lg font-semibold mb-2">Active Baseline</h2>
       <div class="rounded-box border border-base-content/5 bg-base-100 p-4">
-        <p class="text-sm">ID: {{ project.baselines[0].id }}</p>
-        <p class="text-sm">Created: {{ project.baselines[0].createdAt }}</p>
+        <p class="text-sm">ID: {{ project.activeBaseline.id }}</p>
+        <p class="text-sm">Created: {{ project.activeBaseline.createdAt }}</p>
       </div>
     </div>
 
@@ -35,7 +35,7 @@ project.value = await res.json();
           <tr>
             <th>ID</th>
             <th>Status</th>
-            <th>Completed At</th>
+            <th>Created At</th>
           </tr>
         </thead>
         <tbody>
@@ -47,9 +47,10 @@ project.value = await res.json();
               >
                 {{ run.id }}
               </RouterLink>
+              {{ run.id == project.activeBaseline?.id ? "Baseline" : null }}
             </td>
             <td>{{ run.status }}</td>
-            <td>{{ run.completedAt }}</td>
+            <td>{{ run.createdAt }}</td>
           </tr>
         </tbody>
       </table>

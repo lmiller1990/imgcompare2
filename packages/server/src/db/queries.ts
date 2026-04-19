@@ -5,6 +5,7 @@ import type {
   Comparison,
   CompletedResult,
   Result,
+  Run,
   Snapshot,
 } from "../domain.ts";
 import { alias } from "drizzle-orm/pg-core";
@@ -91,22 +92,13 @@ export async function getProjectWithRunsAndBaseline(db: DB, projectId: string) {
 }
 
 export async function getRunsForProject(db: DB, projectId: string) {
-  const baseline = await getProjectWithRunsAndBaseline(db, projectId);
-
   const runs = await db.query.runs.findMany({
     where: (b, { eq, and }) => {
       return and(eq(b.projectId, projectId));
     },
-    with: {
-      snapshots: {
-        with: {
-          baselineComparisons: true,
-        },
-      },
-    },
   });
 
-  return runs.map();
+  return runs.map(mapRun);
 }
 
 export async function getRunById(db: DB, runId: string) {
@@ -202,6 +194,14 @@ function mapSnapshot(row: SnapshotRow): Snapshot {
     name: row.name,
     imagePath: row.imageS3Path,
     status: row.status,
+  };
+}
+
+export function mapRun(row: RunRow): Run {
+  return {
+    id: row.id,
+    status: row.status,
+    createdAt: row.createdAt,
   };
 }
 
