@@ -14,18 +14,8 @@ async function me() {
 }
 
 const router = useRouter();
-const name = ref("");
 
 const projects = ref<ProjectsForUser>([]);
-
-async function handleCreateProject() {
-  await ky.post<{ id: string }>("/api/projects", {
-    json: {
-      name: name.value,
-    },
-  });
-  router.push("/");
-}
 
 const result = await me();
 projects.value = result.projects;
@@ -42,23 +32,14 @@ const {
 
 <template>
   Projects
-  <form @submit.prevent="handleCreateProject">
-    <fieldset
-      class="fieldset bg-base-200 border-base-300 rounded-box w-xs border p-4"
-    >
-      <legend class="fieldset-legend">New Project</legend>
+  <div v-if="asyncStatus === 'loading'" />
 
-      <label class="label">Name</label>
-      <input v-model="name" class="input" placeholder="Name" />
-
-      <button class="btn btn-neutral mt-4">Create Project</button>
-    </fieldset>
-  </form>
-
-  <LoadingIndicator v-if="asyncStatus === 'loading'" />
+  <div class="flex justify-end mb-2">
+    <RouterLink class="btn" to="/projects/new">Create Project</RouterLink>
+  </div>
 
   <div v-if="projectsList.error">
-    <ErrorMessage :error="projectsList.error" />
+    <div :error="projectsList.error" />
   </div>
   <div v-else-if="projectsList.data">
     <div
