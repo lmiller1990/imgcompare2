@@ -56,9 +56,10 @@ export const runSources = pgTable("run_sources", {
     .references(() => runs.id, { onDelete: "cascade" }),
 
   // Git metadata
-  branch: text("branch").notNull(),
-  commitHash: text("commit_hash").notNull(),
-  author: text("author").notNull(),
+  branch: text("branch"),
+  commitHash: text("commit_hash"),
+  authorEmail: text("author_email"),
+  authorName: text("author_name"),
 
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()

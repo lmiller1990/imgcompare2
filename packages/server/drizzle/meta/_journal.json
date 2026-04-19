@@ -43,6 +43,13 @@
       "when": 1776589502250,
       "tag": "0005_conscious_chimera",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1776592605922,
+      "tag": "0006_cool_mandrill",
+      "breakpoints": true
     }
   ]
 }

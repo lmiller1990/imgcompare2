@@ -25,7 +25,7 @@ async function handleApprove() {
     `/api/projects/${route.params.projectId}/runs/${route.params.runId}/approve`,
   );
   toast.show("Run approved.");
-  router.push(`/projects/${route.params.projectId}`);
+  router.push(`/projects/${route.params.projectId}/runs`);
 }
 </script>
 

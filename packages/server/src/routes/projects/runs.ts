@@ -18,6 +18,8 @@ import {
   getProjectWithRunsAndBaseline,
   getRunById,
   getRunsForProject,
+  insertRun,
+  insertRunSource,
   mappers,
   mapRun,
   patchRun,
@@ -28,6 +30,7 @@ import {
   type Comparison,
   type Result,
   type Run,
+  type RunWithSource,
   type Snapshot,
 } from "../../domain.ts";
 import { Queue } from "bullmq";
@@ -35,28 +38,22 @@ import {
   getDb,
   logger,
   services,
+  type GitInfo,
   type SnapshotComparisonWorkerPayload,
 } from "../../index.ts";
+import { DateTime } from "luxon";
 
 const queue = new Queue<SnapshotComparisonWorkerPayload>("diff");
 
 export const projectRunsRoutesPlugin = fp(async (fastify) => {
-  fastify.post<{ Params: { projectId: string } }>(
+  fastify.post<{ Params: { projectId: string }; Body: { gitinfo: GitInfo } }>(
     "/projects/:projectId/runs",
     {
       preHandler: [fastify.verifyUser],
     },
     async (req, reply) => {
-      const { email } = req.user as { email: string };
-
-      const q = await fastify.db
-        .select()
-        .from(users)
-        .where(eq(users.email, email));
-      const user = q?.[0];
-      if (!user) {
-        return reply.code(401).send({ error: "Unauthorized" });
-      }
+      req.log.debug({ gitinfo: req.body.gitinfo }, "got new run");
+      const user = req.dbUser;
 
       const p = await fastify.db
         .select()
@@ -73,14 +70,13 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
         return reply.code(401).send({ error: "Unauthorized" });
       }
 
-      const inserted = await fastify.db
-        .insert(runs)
-        .values({
-          projectId: req.params.projectId,
-        })
-        .returning();
+      const run = await insertRun(fastify.db, req.params.projectId);
 
-      reply.code(201).send(inserted[0]);
+      if (req.body.gitinfo) {
+        await insertRunSource(fastify.db, run, req.body.gitinfo);
+      }
+
+      reply.code(201).send(run);
     },
   );
 
@@ -232,7 +228,11 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
         req.params.projectId,
       );
 
-      const sortedRuns = runs.toSorted((x, y) => +y.createdAt - +x.createdAt);
+      const sortedRuns = runs.toSorted(
+        (x, y) =>
+          +DateTime.fromISO(y.createdAt, { zone: "utc" }) -
+          +DateTime.fromISO(x.createdAt, { zone: "utc" }),
+      );
       reply.send({
         name: project!.name,
         runs: sortedRuns,
@@ -326,7 +326,7 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
 export interface ProjectView {
   name: string;
   activeBaseline: Run | undefined;
-  runs: Run[];
+  runs: RunWithSource[];
 }
 
 type NullableComparison = Partial<Comparison> & { name: string };

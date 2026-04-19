@@ -33,8 +33,14 @@ function timeAgo(dt: string) {
     <div class="mb-6" v-if="project.activeBaseline">
       <h2 class="text-lg font-semibold mb-2">Active Baseline</h2>
       <div class="rounded-box border border-base-content/5 bg-base-100 p-4">
-        <p class="text-sm">ID: {{ project.activeBaseline.id }}</p>
-        <p class="text-sm">Created: {{ project.activeBaseline.createdAt }}</p>
+        <p class="text-sm">
+          ID: {{ project.activeBaseline.id }} (Run #{{
+            project.activeBaseline.runNumber
+          }})
+        </p>
+        <p class="text-sm">
+          Created: {{ nicelyFormat(project.activeBaseline.createdAt) }}
+        </p>
       </div>
     </div>
 
@@ -46,6 +52,7 @@ function timeAgo(dt: string) {
         <thead>
           <tr>
             <th>Run Number</th>
+            <th>Info</th>
             <th>Status</th>
             <th>Created At</th>
           </tr>
@@ -58,11 +65,17 @@ function timeAgo(dt: string) {
             @click="() => handleNavToRun(run.id)"
           >
             <td>
-              <div class="text-xl">
-                {{ run.runNumber }}
-              </div>
+              <div class="text-xl">#{{ run.runNumber }}</div>
               <div>{{ timeAgo(run.createdAt) }}</div>
               {{ run.id == project.activeBaseline?.id ? "Baseline" : null }}
+            </td>
+            <td>
+              <div v-if="run.source">
+                <code>{{ run.source.branch }}</code>
+                <div :title="run.source.commitHash">
+                  {{ run.source.commitHash?.slice(0, 7) }}
+                </div>
+              </div>
             </td>
             <td>
               <div class="badge badge-info badge-sm">

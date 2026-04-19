@@ -5,6 +5,18 @@ export interface Run {
   runNumber: number;
 }
 
+export interface RunSource {
+  id: string;
+  branch: string | undefined;
+  commitHash: string | undefined;
+  authorEmail: string | undefined;
+  authorName: string | undefined;
+}
+
+export interface RunWithSource extends Run {
+  source: RunSource | undefined;
+}
+
 export interface Project {
   id: string;
   name: string;

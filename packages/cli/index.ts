@@ -1,7 +1,9 @@
 import { spawn } from "node:child_process";
 import pino from "pino";
 import { globby } from "globby";
+import { simpleGit } from "simple-git";
 import { input, password as passwordPrompt } from "@inquirer/prompts";
+import type { GitInfo } from "@packages/server/src/index.js";
 import fs from "fs";
 import path, { dirname } from "node:path";
 import ky from "ky";
@@ -22,6 +24,27 @@ const api = ky.extend({
     ],
   },
 });
+
+export async function getGitInfo(): Promise<GitInfo | undefined> {
+  const git = simpleGit();
+
+  const log = await git.log({ maxCount: 1 });
+  const branchSummary = await git.branch();
+
+  const latest = log.latest;
+
+  if (!latest) {
+    logger.debug("Use is not using git. Ignoring.");
+    return;
+  }
+
+  return {
+    hash: latest.hash,
+    authorName: latest.author_name,
+    authorEmail: latest.author_email,
+    branch: branchSummary.current,
+  };
+}
 
 async function getStoredToken() {
   if (!fs.existsSync(TOKEN_PATH)) return null;
@@ -78,7 +101,7 @@ async function login() {
 const showLogs = process.env.PINO;
 
 const logger = pino({
-  level: process.env.LOG_LEVEL || "info",
+  level: process.env.LOG_LEVEL || "debug",
   ...(showLogs && {
     transport: {
       target: "pino-pretty",
@@ -87,9 +110,12 @@ const logger = pino({
 });
 
 async function createRun(projectId: string) {
-  logger.debug("Creating run...");
+  const gitinfo = await getGitInfo();
+  logger.child({ gitinfo }).debug("Creating run...");
   const res = await (
-    await api.post<{ id: string }>(`projects/${projectId}/runs`)
+    await api.post<{ id: string }>(`projects/${projectId}/runs`, {
+      json: { gitinfo },
+    })
   ).json();
   return res;
 }

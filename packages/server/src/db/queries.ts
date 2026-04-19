@@ -1,11 +1,19 @@
 import { and, eq, sql } from "drizzle-orm";
-import type { DB } from "../index.ts";
-import { baselines, comparisons, runs, snapshots } from "./schema.ts";
+import type { DB, GitInfo } from "../index.ts";
+import {
+  baselines,
+  comparisons,
+  runs,
+  runSources,
+  snapshots,
+} from "./schema.ts";
 import type {
   Comparison,
   CompletedResult,
   Result,
   Run,
+  RunSource,
+  RunWithSource,
   Snapshot,
 } from "../domain.ts";
 import { alias } from "drizzle-orm/pg-core";
@@ -91,14 +99,25 @@ export async function getProjectWithRunsAndBaseline(db: DB, projectId: string) {
   });
 }
 
-export async function getRunsForProject(db: DB, projectId: string) {
+export async function getRunsForProject(
+  db: DB,
+  projectId: string,
+): Promise<RunWithSource[]> {
   const runs = await db.query.runs.findMany({
     where: (b, { eq, and }) => {
       return and(eq(b.projectId, projectId));
     },
+    with: {
+      source: true,
+    },
   });
 
-  return runs.map(mapRun);
+  return runs.map((run) => {
+    return {
+      ...mapRun(run),
+      source: run.source ? mapRunSource(run.source) : undefined,
+    };
+  });
 }
 
 export async function getRunById(db: DB, runId: string) {
@@ -143,6 +162,44 @@ export async function patchRun(
   await db.update(runs).set(params).where(eq(runs.id, runId));
 }
 
+export async function insertRun(db: DB, projectId: string): Promise<Run> {
+  const inserted = await db
+    .insert(runs)
+    .values({
+      projectId,
+    })
+    .returning();
+
+  if (!inserted[0]) {
+    throw new Error(`Inserted run for ${projectId} but failed to return`);
+  }
+
+  return mapRun(inserted[0]);
+}
+
+export async function insertRunSource(
+  db: DB,
+  run: Run,
+  gitinfo: GitInfo,
+): Promise<RunSource> {
+  const inserted = await db
+    .insert(runSources)
+    .values({
+      runId: run.id,
+      branch: gitinfo.branch,
+      commitHash: gitinfo.hash,
+      authorEmail: gitinfo.authorEmail,
+      authorName: gitinfo.authorName,
+    })
+    .returning();
+
+  if (!inserted[0]) {
+    throw new Error(`Inserted run source for ${run.id} but failed to return`);
+  }
+
+  return mapRunSource(inserted[0]);
+}
+
 export async function insertComparison(
   db: DB,
   params: typeof comparisons.$inferInsert,
@@ -153,6 +210,7 @@ export async function insertComparison(
 
 type SnapshotRow = typeof snapshots.$inferSelect;
 type RunRow = typeof runs.$inferSelect;
+type RunSourceRow = typeof runSources.$inferSelect;
 type ComparisonRow = {
   comparison: typeof comparisons.$inferSelect;
   baseline: typeof snapshots.$inferSelect;
@@ -203,6 +261,16 @@ export function mapRun(row: RunRow): Run {
     status: row.status,
     createdAt: row.createdAt.toISOString(),
     runNumber: row.runNumber,
+  };
+}
+
+export function mapRunSource(row: RunSourceRow): RunSource {
+  return {
+    id: row.id,
+    branch: row.branch ?? undefined,
+    commitHash: row.commitHash ?? undefined,
+    authorEmail: row.authorEmail ?? undefined,
+    authorName: row.authorEmail ?? undefined,
   };
 }
 
