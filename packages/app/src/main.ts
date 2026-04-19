@@ -36,14 +36,12 @@ const router = createRouter({
       component: ProjectView,
     },
     {
+      path: "/projects/:projectId/runs",
+      component: RunsView,
+    },
+    {
       path: "/projects",
       component: ProjectsView,
-      children: [
-        {
-          path: ":projectId/runs",
-          component: RunsView,
-        },
-      ],
     },
   ],
 });

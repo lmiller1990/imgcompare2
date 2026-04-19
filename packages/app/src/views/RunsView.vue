@@ -1,20 +1,21 @@
 <script setup lang="ts">
-import type { RunsForProject } from "@packages/server/src/db/queries";
 import { ref } from "vue";
 import { useRoute } from "vue-router";
 import { useKy } from "../composables/ky";
+import type { ProjectView } from "@packages/server/src/routes/projects/runs";
 
 const ky = useKy();
-const runs = ref<RunsForProject>();
+const project = ref<ProjectView>();
 const route = useRoute();
 
-const res = await ky.get<RunsForProject>(
+const res = await ky.get<ProjectView>(
   `/api/projects/${route.params.projectId}/runs`,
 );
-runs.value = await res.json();
+project.value = await res.json();
 </script>
 
 <template>
+  Length:
   <div
     class="overflow-x-auto rounded-box border border-base-content/5 bg-base-100"
   >
@@ -27,7 +28,7 @@ runs.value = await res.json();
         </tr>
       </thead>
       <tbody>
-        <tr v-for="run in runs" :key="run.id">
+        <tr v-for="run of project?.runs" :key="run.id">
           <td>
             <RouterLink
               class="link"

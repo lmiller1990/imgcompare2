@@ -49,6 +49,11 @@ export const userRoutesPlugin = fp(async (fastify) => {
     },
   );
 
+  fastify.post("/logout", async (req, reply) => {
+    reply.clearCookie("token", cookieOpts);
+    reply.send({ ok: true });
+  });
+
   fastify.get<{ Body: { name: string } }>(
     "/me",
     {

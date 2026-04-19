@@ -8,7 +8,7 @@ import { useToast } from "../composables/useToast";
 const route = useRoute();
 const router = useRouter();
 const ky = useKy();
-const toast = useToast()
+const toast = useToast();
 
 const res = await ky.get<RunWithResultDto>(
   `/api/projects/${route.params.projectId}/runs/${route.params.runId}`,
@@ -24,8 +24,8 @@ async function handleApprove() {
   await ky.post<RunWithResultDto>(
     `/api/projects/${route.params.projectId}/runs/${route.params.runId}/approve`,
   );
-  toast.show("Run approved.")
-    router.push(`/projects/${route.params.projectId}`)
+  toast.show("Run approved.");
+  router.push(`/projects/${route.params.projectId}`);
 }
 </script>
 
