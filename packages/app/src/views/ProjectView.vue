@@ -28,23 +28,25 @@ function timeAgo(dt: string) {
 
 <template>
   <div v-if="project">
-    <h1 class="text-2xl font-bold mb-4">{{ project.name }}</h1>
-
-    <div class="mb-6" v-if="project.activeBaseline">
-      <h2 class="text-lg font-semibold mb-2">Active Baseline</h2>
-      <div class="rounded-box border border-base-content/5 bg-base-100 p-4">
-        <p class="text-sm">
-          ID: {{ project.activeBaseline.id }} (Run #{{
-            project.activeBaseline.runNumber
-          }})
-        </p>
-        <p class="text-sm">
-          Created: {{ nicelyFormat(project.activeBaseline.createdAt) }}
-        </p>
+    <div class="flex justify-end items-center">
+      <div v-if="project.activeBaseline">
+        <div class="rounded-box border border-base-content/5 bg-base-10 mb-2">
+          <p class="text-sm">
+            Active baseline:
+            <RouterLink
+              class="link"
+              :to="`/projects/${route.params.projectId}/runs/${project.activeBaseline.id}`"
+            >
+              Run #{{ project.activeBaseline.runNumber }}
+            </RouterLink>
+          </p>
+          <p class="text-sm">
+            {{ nicelyFormat(project.activeBaseline.createdAt) }}
+          </p>
+        </div>
       </div>
     </div>
 
-    <h2 class="text-lg font-semibold mb-2">Runs</h2>
     <div
       class="overflow-x-auto rounded-box border border-base-content/5 bg-base-100"
     >
@@ -67,7 +69,12 @@ function timeAgo(dt: string) {
             <td>
               <div class="text-xl">#{{ run.runNumber }}</div>
               <div>{{ timeAgo(run.createdAt) }}</div>
-              {{ run.id == project.activeBaseline?.id ? "Baseline" : null }}
+              <div
+                v-if="run.id == project.activeBaseline?.id"
+                class="badge badge-soft badge-accent"
+              >
+                Baseline
+              </div>
             </td>
             <td>
               <div v-if="run.source">
