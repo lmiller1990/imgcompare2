@@ -1,20 +1,17 @@
 <script setup lang="ts">
 import { DateTime } from "luxon";
-import { ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { useKy } from "../composables/ky";
-import type { ProjectView } from "@packages/server/src/routes/projects/runs";
+import { useQuery } from "@pinia/colada";
+import { getProject } from "../api";
 import { nicelyFormat } from "../utils/datetime";
 
-const ky = useKy();
-const project = ref<ProjectView>();
 const route = useRoute();
 const router = useRouter();
 
-const res = await ky.get<ProjectView>(
-  `/api/projects/${route.params.projectId}/runs`,
-);
-project.value = await res.json();
+const { state: projectState, asyncStatus } = useQuery({
+  key: () => ["project", route.params.projectId],
+  query: () => getProject(route.params.projectId as string),
+});
 
 function handleNavToRun(runId: string) {
   router.push(`/projects/${route.params.projectId}/runs/${runId}`);
@@ -27,21 +24,26 @@ function timeAgo(dt: string) {
 </script>
 
 <template>
-  <div v-if="project">
+  <div v-if="asyncStatus === 'loading'" />
+
+  <div v-if="projectState.error">
+    <div :error="projectState.error" />
+  </div>
+  <div v-else-if="projectState.data">
     <div class="flex justify-end items-center">
-      <div v-if="project.activeBaseline">
+      <div v-if="projectState.data.activeBaseline">
         <div class="rounded-box border border-base-content/5 bg-base-10 mb-2">
           <p class="text-sm">
             Active baseline:
             <RouterLink
               class="link"
-              :to="`/projects/${route.params.projectId}/runs/${project.activeBaseline.id}`"
+              :to="`/projects/${route.params.projectId}/runs/${projectState.data.activeBaseline.id}`"
             >
-              Run #{{ project.activeBaseline.runNumber }}
+              Run #{{ projectState.data.activeBaseline.runNumber }}
             </RouterLink>
           </p>
           <p class="text-sm">
-            {{ nicelyFormat(project.activeBaseline.createdAt) }}
+            {{ nicelyFormat(projectState.data.activeBaseline.createdAt) }}
           </p>
         </div>
       </div>
@@ -61,7 +63,7 @@ function timeAgo(dt: string) {
         </thead>
         <tbody>
           <tr
-            v-for="run in project.runs"
+            v-for="run in projectState.data.runs"
             :key="run.id"
             class="cursor-pointer"
             @click="() => handleNavToRun(run.id)"
@@ -70,7 +72,7 @@ function timeAgo(dt: string) {
               <div class="text-xl">#{{ run.runNumber }}</div>
               <div>{{ timeAgo(run.createdAt) }}</div>
               <div
-                v-if="run.id == project.activeBaseline?.id"
+                v-if="run.id == projectState.data.activeBaseline?.id"
                 class="badge badge-soft badge-accent"
               >
                 Baseline
