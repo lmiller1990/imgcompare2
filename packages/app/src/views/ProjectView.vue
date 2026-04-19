@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { useRoute } from "vue-router";
 import { useKy } from "../composables/ky";
 import type { ProjectView } from "@packages/server/src/routes/projects/runs";
+import { nicelyFormat } from "../utils/datetime";
 
 const ky = useKy();
 const project = ref<ProjectView>();
@@ -50,7 +51,7 @@ project.value = await res.json();
               {{ run.id == project.activeBaseline?.id ? "Baseline" : null }}
             </td>
             <td>{{ run.status }}</td>
-            <td>{{ run.createdAt }}</td>
+            <td>{{ nicelyFormat(run.createdAt.toString()) }}</td>
           </tr>
         </tbody>
       </table>
