@@ -8,6 +8,7 @@ import {
   primaryKey,
   unique,
   numeric,
+  integer,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -40,10 +41,28 @@ export const runs = pgTable("runs", {
     .notNull()
     .references(() => projects.id, { onDelete: "cascade" }),
   status: text("status").notNull().default("pending"),
+  runNumber: integer().notNull().generatedAlwaysAsIdentity(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
   completedAt: timestamp("completed_at", { withTimezone: true }),
+});
+
+export const runSources = pgTable("run_sources", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  runId: uuid("run_id")
+    .notNull()
+    .unique()
+    .references(() => runs.id, { onDelete: "cascade" }),
+
+  // Git metadata
+  branch: text("branch").notNull(),
+  commitHash: text("commit_hash").notNull(),
+  author: text("author").notNull(),
+
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
 export const snapshots = pgTable("snapshots", {
@@ -127,12 +146,20 @@ export const baselinesRelations = relations(baselines, ({ one }) => ({
   }),
 }));
 
+export const runSourcesRelations = relations(runSources, ({ one }) => ({
+  run: one(runs, {
+    fields: [runSources.runId],
+    references: [runs.id],
+  }),
+}));
+
 export const runsRelations = relations(runs, ({ one, many }) => ({
   project: one(projects, {
     fields: [runs.projectId],
     references: [projects.id],
   }),
   snapshots: many(snapshots),
+  source: one(runSources),
 }));
 
 export const snapshotsRelations = relations(snapshots, ({ one, many }) => ({

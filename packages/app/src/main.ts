@@ -31,7 +31,7 @@ const router = createRouter({
       component: RunView,
     },
     {
-      path: "/projects/:projectId",
+      path: "/projects/:projectId/runs",
       component: ProjectView,
     },
     {

@@ -201,7 +201,8 @@ export function mapRun(row: RunRow): Run {
   return {
     id: row.id,
     status: row.status,
-    createdAt: row.createdAt,
+    createdAt: row.createdAt.toISOString(),
+    runNumber: row.runNumber,
   };
 }
 

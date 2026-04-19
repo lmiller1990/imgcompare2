@@ -36,6 +36,13 @@
       "when": 1776513912860,
       "tag": "0004_cooing_puma",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1776589502250,
+      "tag": "0005_conscious_chimera",
+      "breakpoints": true
     }
   ]
 }

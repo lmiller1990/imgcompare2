@@ -1,7 +1,8 @@
 export interface Run {
   id: string;
   status: string;
-  createdAt: Date;
+  createdAt: string;
+  runNumber: number;
 }
 
 export interface Project {

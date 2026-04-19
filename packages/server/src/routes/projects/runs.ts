@@ -37,7 +37,6 @@ import {
   services,
   type SnapshotComparisonWorkerPayload,
 } from "../../index.ts";
-import assert from "node:assert";
 
 const queue = new Queue<SnapshotComparisonWorkerPayload>("diff");
 
