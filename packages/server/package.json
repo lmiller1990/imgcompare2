@@ -3,6 +3,7 @@
   "name": "@packages/server",
   "scripts": {
     "dev": "nodemon src/index.ts | pino-pretty",
+    "start": "node src/index.ts",
     "db:migrate": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "test": "vitest --run"
