@@ -34,9 +34,9 @@ const { state: projectState } = useQuery({
         <li>
           <details>
             <summary>Menu</summary>
-            <ul class="bg-base-100 rounded-t-none p-2">
-              <li><a @click="logout">Logout</a></li>
+            <ul class="bg-base-200 rounded-t-none p-2">
               <li><RouterLink to="/projects">Projects</RouterLink></li>
+              <li><a @click="logout">Logout</a></li>
             </ul>
           </details>
         </li>

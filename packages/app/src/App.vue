@@ -7,11 +7,15 @@ import Toast from "./components/Toast.vue";
 
 <template>
   <Toast />
-  <Navbar />
-  <Suspense>
-    <StartHere />
-    <template #fallback>
-      <HandleError />
-    </template>
-  </Suspense>
+  <div class="mb-2">
+    <Navbar />
+  </div>
+  <div class="m-4">
+    <Suspense>
+      <StartHere />
+      <template #fallback>
+        <HandleError />
+      </template>
+    </Suspense>
+  </div>
 </template>

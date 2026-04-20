@@ -62,9 +62,7 @@ export const userRoutesPlugin = fp(async (fastify) => {
     async (req, reply) => {
       const projects = await getProjectsForUser(fastify.db, req.dbUser.id);
 
-      reply.send({
-        projects,
-      });
+      reply.send({ projects });
     },
   );
 });
