@@ -36,9 +36,11 @@ async function handleApprove() {
   <div v-if="asyncStatus === 'loading'">Loading...</div>
   <div v-else-if="status === 'error'">Error :(</div>
   <template v-else-if="runState.data">
-    <form @submit.prevent="handleApprove">
-      <button class="btn btn-success">Approve</button>
-    </form>
+    <div v-if="runState.data.run.status === 'unreviewed'" class="my-2">
+      <form @submit.prevent="handleApprove">
+        <button class="btn btn-success btn-sm">Approve</button>
+      </form>
+    </div>
     <div
       class="overflow-x-auto rounded-box border border-base-content/5 bg-base-100 max-w-[80%]"
     >

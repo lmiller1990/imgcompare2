@@ -87,7 +87,18 @@ function timeAgo(dt: string) {
               </div>
             </td>
             <td>
-              <div class="badge badge-info badge-sm">
+              <div v-if="run.approval" class="badge badge-success badge-sm">
+                approved
+              </div>
+              <div
+                v-else
+                :class="{
+                  'badge-warning': run.status === 'unreviewed',
+                  'badge-info': run.status === 'pending',
+                  'badge-error': run.status === 'rejected',
+                }"
+                class="badge badge-sm"
+              >
                 {{ run.status }}
               </div>
             </td>

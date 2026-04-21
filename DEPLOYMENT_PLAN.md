@@ -3,20 +3,23 @@
 ## Overview
 
 Self-hosted on a single server behind Caddy. Everything except Caddy runs in Docker Compose.
-GitLab CI builds images, pushes to DockerHub, then deploys via SSH.
+GitLab CI builds images and pushes to DockerHub. Deploys are manual for now (run on the server directly).
 
 ---
 
-## Files to create
+## Status
 
-| File | Purpose |
-|---|---|
-| `packages/app/Dockerfile` | Multi-stage: build Vue with Node, serve with nginx |
-| `packages/server/Dockerfile` | Install deps, run with tsx (no TS compile step) |
-| `docker-compose.yml` | frontend, server, postgres, redis |
-| `.env.example` | Documents required environment variables |
-| `.gitlab-ci.yml` | Build → push → deploy pipeline |
-| `scripts/deploy.sh` | Runs on the server via SSH: pull, migrate, restart |
+| File                         | Status  | Notes                                                                |
+| ---------------------------- | ------- | -------------------------------------------------------------------- |
+| `packages/app/Dockerfile`    | ✅ Done | Multi-stage: vite build → nginx                                      |
+| `packages/app/nginx.conf`    | ✅ Done | SPA fallback for Vue Router                                          |
+| `packages/server/Dockerfile` | ✅ Done | pnpm deploy --prod, runs via `node src/index.ts` (Node 24 native TS) |
+| `.dockerignore`              | ✅ Done | Excludes node_modules, .env, dist                                    |
+| `docker-compose.yml`         | ✅ Done | frontend, server, postgres, redis                                    |
+| `.gitlab-ci.yml`             | ✅ Done | Builds + pushes both images to DockerHub on `main`                   |
+| `.env.example`               | ⬜ Todo | Document required env vars                                           |
+| Caddyfile config             | ⬜ Todo | Snippet to add to server's Caddyfile                                 |
+| One-time server setup        | ⬜ Todo | Steps to run on the server the first time                            |
 
 ---
 
@@ -25,53 +28,38 @@ GitLab CI builds images, pushes to DockerHub, then deploys via SSH.
 ### `packages/app/Dockerfile`
 
 Two stages:
-1. `build` — Node 22, installs deps, runs `pnpm build`, outputs `dist/`
-2. `serve` — nginx:alpine, copies `dist/` in, serves on port 80
 
-The nginx config needs to handle client-side routing (Vue Router): all 404s should
-fall back to `index.html`.
+1. `builder` — Node 24 alpine, installs workspace deps, runs `vite build` (type checking is skipped — run separately in CI if desired)
+2. `runner` — nginx:alpine, copies `dist/`, serves on port 80 with SPA fallback
 
 ### `packages/server/Dockerfile`
 
-Single stage:
-- Node 22 alpine
-- Install pnpm, copy workspace files, install production deps
-- Run via `tsx src/index.ts` (avoids needing a separate TS build step since tsconfig has `noEmit: true`)
-- Exposes port 8070
+Two stages:
 
-The pnpm workspace means we need to copy root `package.json` + `pnpm-workspace.yaml`
-alongside `packages/server/` so the install works correctly.
+1. `installer` — installs full workspace deps, runs `pnpm deploy --prod --legacy` to produce a self-contained production dir
+2. `runner` — Node 24 alpine, copies deployed dir, runs `node src/index.ts`
+
+Node 24 strips TypeScript natively — no tsx or compile step needed.
 
 ---
 
-## Docker Compose (`docker-compose.yml`)
+## Docker Compose
 
-Four services, one network (`imgcompare`):
+Four services. Frontend and server bind only to `127.0.0.1` so Caddy (on the host) can reach them but they are not exposed to the internet directly.
 
-- **frontend** — `lachlanmillerdev/imgcompare-frontend:latest`, port 80 (internal only)
-- **server** — `lachlanmillerdev/imgcompare-server:latest`, port 8070 (internal only)
-- **postgres** — `postgres:17-alpine`, data volume, internal only
-- **redis** — `redis:7-alpine`, internal only
-
-Caddy on the host references containers by name:
 ```
-reverse_proxy imgcompare-frontend:80
-reverse_proxy imgcompare-server:8070
+frontend  → 127.0.0.1:3000
+server    → 127.0.0.1:8070
+postgres  → 127.0.0.1:5432 (internal + accessible locally for migrations/admin)
+redis     → internal only
 ```
 
-For this to work, Caddy must be able to reach the Docker network. Options:
-- Use `network_mode: host` on the containers (simple, Linux only)
-- Or add Caddy to the Docker network via `docker network connect`
-- Or expose ports to localhost only (`127.0.0.1:3000:80`) and have Caddy proxy to localhost
+Postgres credentials and server env vars come from a `.env` file on the server (not committed).
 
-Recommended: expose to localhost only — most explicit, avoids network bridging complexity:
-```yaml
-ports:
-  - "127.0.0.1:3000:80"   # frontend
-  - "127.0.0.1:8070:8070" # server
-```
+---
 
-Then Caddyfile:
+## Caddyfile (add to server)
+
 ```
 vrt.lachlan-miller.me {
     handle /api/* {
@@ -83,81 +71,65 @@ vrt.lachlan-miller.me {
 }
 ```
 
----
-
-## Environment variables
-
-The server needs:
-- `DATABASE_URL` — postgres connection string
-- `REDIS_URL` — redis connection string  
-- `AWS_ACCESS_KEY_ID` — S3 / CloudWatch
-- `AWS_SECRET_ACCESS_KEY`
-- `AWS_REGION`
-- `S3_BUCKET`
-- `JWT_SECRET`
-
-These live in a `.env` file on the server (not committed). Docker Compose loads it via `env_file: .env`.
+Note: Caddy does not strip the `/api` prefix by default. The Fastify server will receive requests
+at `/api/...` — verify your routes include the prefix or strip it in Caddy with `uri strip_prefix /api`.
 
 ---
 
-## GitLab CI (`.gitlab-ci.yml`)
+## GitLab CI
 
-Three stages: `build`, `push`, `deploy`
+Single `build` stage, runs on `main` only. Uses Docker-in-Docker.
 
-### build
+Builds and pushes both images tagged with `$CI_COMMIT_SHA` and `latest`.
 
-- Runs on GitLab's Docker-in-Docker runner
-- Builds both images: `imgcompare-frontend` and `imgcompare-server`
-- Tags with `$CI_COMMIT_SHA` and `latest`
+### CI variables to add in GitLab → Settings → CI/CD → Variables
 
-### push
+| Variable             | Value                  | Options |
+| -------------------- | ---------------------- | ------- |
+| `DOCKERHUB_USERNAME` | `lachlanmillerdev`     |         |
+| `DOCKERHUB_TOKEN`    | DockerHub access token | Masked  |
 
-- Logs into DockerHub using CI variables `DOCKERHUB_USERNAME` + `DOCKERHUB_TOKEN`
-- Pushes both images
-
-### deploy
-
-- Only runs on `main` branch
-- SSHs into the server using `SSH_PRIVATE_KEY` CI variable
-- Runs `scripts/deploy.sh` remotely
-
-### GitLab CI variables to configure
-
-| Variable | Where to set |
-|---|---|
-| `DOCKERHUB_USERNAME` | GitLab CI/CD settings |
-| `DOCKERHUB_TOKEN` | GitLab CI/CD settings (masked) |
-| `SSH_PRIVATE_KEY` | GitLab CI/CD settings (masked) |
-| `DEPLOY_HOST` | GitLab CI/CD settings (your server IP/hostname) |
-| `DEPLOY_USER` | GitLab CI/CD settings |
+Generate the DockerHub token at: Account Settings → Personal access tokens → Read & Write scope.
 
 ---
 
-## Deploy script (`scripts/deploy.sh`)
+## Manual deploy (on the server)
 
-Runs on the server after SSH. Steps:
-1. `docker compose pull` — pull new images
-2. `docker compose run --rm server pnpm db:migrate` — run migrations before restart
-3. `docker compose up -d` — restart with new images
-
-Migrations run against the live database before the new server starts,
-so the schema is always ahead of the running code (safe for additive migrations).
+```bash
+docker compose pull
+docker compose run --rm server pnpm db:migrate   # run migrations first
+docker compose up -d
+```
 
 ---
 
 ## One-time server setup
 
-1. Install Docker + Docker Compose plugin
-2. Clone repo (or just copy `docker-compose.yml` + `.env`)
-3. Create `.env` with production values
-4. Add the GitLab deploy SSH public key to `~/.ssh/authorized_keys`
-5. Configure Caddyfile and reload Caddy
-6. Run `docker compose up -d` once manually to initialise
+1. Install Docker + Compose plugin
+2. Copy `docker-compose.yml` to the server (or clone repo)
+3. Create `.env` alongside `docker-compose.yml` with production values (see env vars below)
+4. Add Caddyfile block above and `caddy reload`
+5. `docker compose up -d`
 
 ---
 
-## Open questions / decisions
+## Environment variables (`.env` on server)
 
-- [ ] Confirm server OS and whether Docker is already installed
-- [ ] Decide on postgres data backup strategy (pg_dump cron, or managed)
-- [ ] Confirm `pnpm db:migrate` uses `drizzle-kit migrate` (safe) not `drizzle-kit push` (destructive in prod)
+```
+DATABASE_URL=postgresql://imgcompare:yourpassword@postgres:5432/imgcompare
+POSTGRES_PASSWORD=yourpassword
+POSTGRES_USER=imgcompare
+POSTGRES_DB=imgcompare
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_REGION=
+S3_BUCKET=
+JWT_SECRET=
+```
+
+---
+
+## Open questions
+
+- [ ] Confirm `pnpm db:migrate` (`drizzle-kit push`) is safe for production — consider switching to `drizzle-kit migrate` which runs versioned SQL files instead of pushing schema diffs
+- [ ] Postgres backup strategy (pg_dump cron job or managed backup)

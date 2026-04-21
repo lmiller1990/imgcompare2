@@ -1,0 +1,6 @@
+node_modules
+**/node_modules
+.git
+packages/app/dist
+**/.env
+*.local

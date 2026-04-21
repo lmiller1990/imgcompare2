@@ -219,7 +219,7 @@ Please review and update it as needed.
 async function markRunAsComplete(projectId: string, runId: string) {
   await api.patch(`projects/${projectId}/run/${runId}`, {
     json: {
-      status: "complete",
+      status: "unreviewed",
     },
   });
 }

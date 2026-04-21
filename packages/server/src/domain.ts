@@ -13,8 +13,15 @@ export interface RunSource {
   authorName: string | undefined;
 }
 
+export interface RunApproval {
+  id: string;
+  approvedByUser: any;
+  approvedAt: string;
+}
+
 export interface RunWithSource extends Run {
   source: RunSource | undefined;
+  approval: RunApproval | undefined;
 }
 
 export interface Project {

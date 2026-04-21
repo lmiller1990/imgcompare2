@@ -1,9 +1,49 @@
 services:
+  frontend:
+    image: lachlanmillerdev/imgcompare-frontend:latest
+    container_name: imgcompare-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:80"
+
+  server:
+    image: lachlanmillerdev/imgcompare-server:latest
+    container_name: imgcompare-server
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8070:8070"
+    env_file: packages/server/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
   postgres:
     image: postgres:17-alpine
-    ports:
-      - "5432:5432"
+    container_name: imgcompare-postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: images
+      POSTGRES_DB: ${POSTGRES_DB:-imgcompare}
+      POSTGRES_USER: ${POSTGRES_USER:-imgcompare}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-imgcompare}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: imgcompare-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:

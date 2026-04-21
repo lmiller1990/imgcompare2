@@ -35,18 +35,24 @@ export const projects = pgTable("projects", {
     .notNull(),
 });
 
-export const runs = pgTable("runs", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  projectId: uuid("project_id")
-    .notNull()
-    .references(() => projects.id, { onDelete: "cascade" }),
-  status: text("status").notNull().default("pending"),
-  runNumber: integer().notNull().generatedAlwaysAsIdentity(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-  completedAt: timestamp("completed_at", { withTimezone: true }),
-});
+export const runs = pgTable(
+  "runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("pending"),
+    runNumber: integer().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (t) => ({
+    projectRunUnique: unique().on(t.projectId, t.runNumber),
+  }),
+);
 
 export const runSources = pgTable("run_sources", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -161,7 +167,18 @@ export const runsRelations = relations(runs, ({ one, many }) => ({
   }),
   snapshots: many(snapshots),
   source: one(runSources),
+  approval: one(runApprovals),
 }));
+
+export const runApprovalsRelationss = relations(
+  runApprovals,
+  ({ one, many }) => ({
+    run: one(runs, {
+      fields: [runApprovals.runId],
+      references: [runs.id],
+    }),
+  }),
+);
 
 export const snapshotsRelations = relations(snapshots, ({ one, many }) => ({
   run: one(runs, {

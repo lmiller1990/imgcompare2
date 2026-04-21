@@ -49,26 +49,14 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
   fastify.post<{ Params: { projectId: string }; Body: { gitinfo: GitInfo } }>(
     "/projects/:projectId/runs",
     {
-      preHandler: [fastify.verifyUser],
+      preHandler: [fastify.verifyUser, fastify.verifyProjectAccess],
     },
     async (req, reply) => {
       req.log.debug({ gitinfo: req.body.gitinfo }, "got new run");
-      const user = req.dbUser;
-
       const p = await fastify.db
         .select()
         .from(projects)
-        .where(
-          and(
-            eq(projects.ownerUserId, user.id),
-            eq(projects.id, req.params.projectId),
-          ),
-        );
-
-      const project = p?.[0];
-      if (!project) {
-        return reply.code(401).send({ error: "Unauthorized" });
-      }
+        .where(and(eq(projects.id, req.params.projectId)));
 
       const run = await insertRun(fastify.db, req.params.projectId);
 
@@ -156,7 +144,6 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
 
       await patchRun(fastify.db, req.params.runId, {
         completedAt: new Date(),
-        status: "completed",
       });
 
       // find project baseline

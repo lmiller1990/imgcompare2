@@ -3,6 +3,7 @@ import type { DB, GitInfo } from "../index.ts";
 import {
   baselines,
   comparisons,
+  runApprovals,
   runs,
   runSources,
   snapshots,
@@ -12,11 +13,13 @@ import type {
   CompletedResult,
   Result,
   Run,
+  RunApproval,
   RunSource,
   RunWithSource,
   Snapshot,
 } from "../domain.ts";
 import { alias } from "drizzle-orm/pg-core";
+import pRetry from "p-retry";
 
 type SnapshotTuple = [string, string];
 
@@ -82,6 +85,7 @@ export async function getProjectWithRunsAndBaseline(db: DB, projectId: string) {
     with: {
       runs: {
         with: {
+          approval: true,
           snapshots: {
             with: {
               baselineComparisons: true,
@@ -108,6 +112,7 @@ export async function getRunsForProject(
       return and(eq(b.projectId, projectId));
     },
     with: {
+      approval: true,
       source: true,
     },
   });
@@ -116,6 +121,7 @@ export async function getRunsForProject(
     return {
       ...mapRun(run),
       source: run.source ? mapRunSource(run.source) : undefined,
+      approval: run.approval ? mapRunApproval(run.approval) : undefined,
     };
   });
 }
@@ -162,19 +168,37 @@ export async function patchRun(
   await db.update(runs).set(params).where(eq(runs.id, runId));
 }
 
+/**
+ * need to retry to avoid race condition of two runs querying at same time return same run number.
+ */
 export async function insertRun(db: DB, projectId: string): Promise<Run> {
-  const inserted = await db
-    .insert(runs)
-    .values({
-      projectId,
-    })
-    .returning();
+  return pRetry(
+    async () => {
+      const result = await db
+        .select({
+          nextRunNumber: sql<number>`coalesce(max(${runs.runNumber}), 0) + 1`,
+        })
+        .from(runs)
+        .where(eq(runs.projectId, projectId));
 
-  if (!inserted[0]) {
-    throw new Error(`Inserted run for ${projectId} but failed to return`);
-  }
+      const nextRunNumber = result[0]?.nextRunNumber ?? 1;
 
-  return mapRun(inserted[0]);
+      const inserted = await db
+        .insert(runs)
+        .values({
+          projectId,
+          runNumber: nextRunNumber,
+        })
+        .returning();
+
+      if (!inserted[0]) {
+        throw new Error(`Inserted run for ${projectId} but failed to return`);
+      }
+
+      return mapRun(inserted[0]);
+    },
+    { retries: 3 },
+  );
 }
 
 export async function insertRunSource(
@@ -211,6 +235,7 @@ export async function insertComparison(
 type SnapshotRow = typeof snapshots.$inferSelect;
 type RunRow = typeof runs.$inferSelect;
 type RunSourceRow = typeof runSources.$inferSelect;
+type RunApprovalRow = typeof runApprovals.$inferSelect;
 type ComparisonRow = {
   comparison: typeof comparisons.$inferSelect;
   baseline: typeof snapshots.$inferSelect;
@@ -271,6 +296,14 @@ export function mapRunSource(row: RunSourceRow): RunSource {
     commitHash: row.commitHash ?? undefined,
     authorEmail: row.authorEmail ?? undefined,
     authorName: row.authorEmail ?? undefined,
+  };
+}
+
+export function mapRunApproval(row: RunApprovalRow): RunApproval {
+  return {
+    id: row.id,
+    approvedAt: row.approvedAt.toISOString(),
+    approvedByUser: row.approvedByUserId,
   };
 }
 

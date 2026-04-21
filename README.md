@@ -37,7 +37,7 @@ graph TB
 When moving to AWS, only the surrounding infrastructure changes — not the containers:
 
 | Concern         | Self-hosted       | AWS                   |
-|-----------------|-------------------|-----------------------|
+| --------------- | ----------------- | --------------------- |
 | HTTPS / ingress | Caddy (host)      | ALB + ACM             |
 | Frontend        | nginx container   | S3 + CloudFront       |
 | API             | Fastify container | ECS Fargate           |
