@@ -1,4 +1,5 @@
 {
+  "name": "@packages/cli",
   "type": "module",
   "dependencies": {
     "@inquirer/prompts": "^8.4.1",
