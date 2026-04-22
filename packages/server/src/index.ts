@@ -17,13 +17,6 @@ import { Readable } from "node:stream";
 
 export type DB = ReturnType<typeof drizzle<typeof schema>>;
 
-export type GitInfo = {
-  hash: string;
-  authorName: string;
-  authorEmail: string;
-  branch: string;
-};
-
 export const logger = pino({ level: "debug" });
 
 const db =

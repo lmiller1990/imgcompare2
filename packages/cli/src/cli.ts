@@ -1,18 +1,21 @@
+#!/usr/bin/env node
+
 import { spawn } from "node:child_process";
-import pino from "pino";
+import debugLib from "debug";
 import { globby } from "globby";
 import { simpleGit } from "simple-git";
 import { input, password as passwordPrompt } from "@inquirer/prompts";
-import type { GitInfo } from "@packages/server/src/index.js";
+import type { GitInfo } from "@packages/domain/src/domain.js";
 import fs from "fs";
-import path, { dirname } from "node:path";
+import path from "node:path";
 import ky from "ky";
 import os from "os";
 
+const debug = debugLib("imgcompare:cli");
 const TOKEN_PATH = path.join(os.homedir(), ".imgtoken");
 
 const api = ky.extend({
-  baseUrl: "http://localhost:8070",
+  baseUrl: process.env.SERVER_URL ?? "https://imgcompare.lachlan-miller.me/api",
   hooks: {
     beforeRequest: [
       async ({ request }) => {
@@ -34,7 +37,7 @@ export async function getGitInfo(): Promise<GitInfo | undefined> {
   const latest = log.latest;
 
   if (!latest) {
-    logger.debug("Use is not using git. Ignoring.");
+    debug("Use is not using git. Ignoring.");
     return;
   }
 
@@ -75,7 +78,7 @@ async function signup() {
     console.log("Welcome aboard!");
   } catch (error) {
     console.error(`Error occurred: ${error}`);
-    logger.child({ error }).error("Error posting to server");
+    debug("Error %s", error);
     //
   }
 }
@@ -92,26 +95,13 @@ async function login() {
     await saveToken((await res.json()).token);
     console.log("Logged in.");
   } catch (error) {
-    console.error("Invalid email or password.");
-    logger.child({ error }).error("Error posting to server");
-    //
+    console.error("Invalid email or password. Error %s");
   }
 }
 
-const showLogs = process.env.PINO;
-
-const logger = pino({
-  level: process.env.LOG_LEVEL || "debug",
-  ...(showLogs && {
-    transport: {
-      target: "pino-pretty",
-    },
-  }),
-});
-
 async function createRun(projectId: string) {
   const gitinfo = await getGitInfo();
-  logger.child({ gitinfo }).debug("Creating run...");
+  debug("Creating run... %o");
   const res = await (
     await api.post<{ id: string }>(`projects/${projectId}/runs`, {
       json: { gitinfo },
@@ -122,7 +112,7 @@ async function createRun(projectId: string) {
 
 async function findAllScreenshots(cwd: string) {
   const files = await globby(path.posix.join(cwd, "**/*.png"));
-  logger.child({ files }).debug("Found files");
+  debug("Found files %o", files);
   return files;
 }
 
@@ -147,7 +137,7 @@ async function postScreenshots(
       body: form,
     });
   } catch (error) {
-    logger.child({ error }).error("Error posting to server");
+    debug("Error posting to server: %o");
     //
   }
 }
@@ -227,14 +217,24 @@ async function markRunAsComplete(projectId: string, runId: string) {
 export async function run(process: NodeJS.Process) {
   let cleanArgs = process.argv.slice(2);
   cleanArgs = cleanArgs[0] === "--" ? cleanArgs.slice(1) : cleanArgs;
-  const log = logger.child({ args: cleanArgs, cwd: process.cwd() });
 
-  log.debug("Running");
+  debug("Running with cwd %s and args %o", process.cwd(), cleanArgs);
+
   const [cmd, ...args] = cleanArgs;
   if (!cmd) {
     throw new Error(
       `You need to pass a command, eg pnpm exec <tool> playwright test`,
     );
+  }
+
+  if (!cmd || cmd === "help" || cmd === "--help" || cmd === "-h") {
+    console.log(
+      `
+exec prefers <cwd>/node_modules/.bin (like pnpm exec)
+set IMGCOMPARE_API_URL to point at your server (default: http://localhost)
+`,
+    );
+    return;
   }
 
   if (cmd === "login") {
@@ -248,10 +248,10 @@ export async function run(process: NodeJS.Process) {
   }
 
   const config = await loadConfig();
-  log.child({ config }).debug("Loaded config");
+  debug("Loaded config: %o");
 
   const { id: runId } = await createRun(config.projectId);
-  log.child({ runId }).debug("Created a run");
+  debug("Created a run %s", runId);
 
   const child = spawn(cmd, args, {
     stdio: "inherit",

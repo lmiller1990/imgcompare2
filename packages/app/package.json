@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@packages/domain": "workspace:*",
     "@pinia/colada": "^1.2.0",
     "@tailwindcss/vite": "^4.2.2",
     "@types/luxon": "^3.7.1",
