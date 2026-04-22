@@ -7,7 +7,9 @@ import {
 import { Upload } from "@aws-sdk/lib-storage";
 import type { FastifyRequest } from "fastify";
 import type { Readable } from "node:stream";
-import { logger } from "../index.ts";
+import pino from "pino";
+
+const logger = pino({ level: "debug" });
 
 logger.info(`Creating S3 client with profile: ${process.env.AWS_PROFILE}`);
 
