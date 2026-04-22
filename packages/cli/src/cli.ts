@@ -108,13 +108,19 @@ async function login() {
 }
 
 async function createRun(projectId: string, gitinfo?: GitInfo) {
-  debug("Creating run... %o");
-  const res = await (
-    await api.post<{ id: string }>(`projects/${projectId}/runs`, {
-      json: { gitinfo },
-    })
-  ).json();
-  return res;
+  debug("Creating run... projectId: %s gitinfo: %o", projectId, gitinfo);
+  try {
+    const res = await (
+      await api.post<{ id: string }>(`projects/${projectId}/runs`, {
+        json: { gitinfo },
+      })
+    ).json();
+    return res;
+  } catch (e) {
+    debug("Failed to start run: %s", e);
+    console.error("Failed to initialize run. Aborting.");
+    process.exit();
+  }
 }
 
 async function findAllScreenshots(cwd: string) {
@@ -255,12 +261,13 @@ set IMGCOMPARE_API_URL to point at your server (default: http://localhost)
   }
 
   const config = await loadConfig();
-  debug("Loaded config: %o");
+  debug("Loaded config: %o", config);
 
   const gitinfo = await maybeGetGitInfo();
   const { id: runId } = await createRun(config.projectId, gitinfo);
   debug("Created a run %s", runId);
 
+  debug("Spawning child process with cmd: %s and args %o", cmd, args);
   const child = spawn(cmd, args, {
     stdio: "inherit",
     shell: false,
@@ -275,6 +282,11 @@ set IMGCOMPARE_API_URL to point at your server (default: http://localhost)
 
     // forward this to ensure we fail with same status as uses process
     process.exit(code);
+  });
+
+  child.on("error", (e) => {
+    console.error("Unexpected error occurred. Aborting.");
+    debug("Child exited with error: %s", e);
   });
 }
 
