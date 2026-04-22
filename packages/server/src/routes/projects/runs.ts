@@ -33,12 +33,12 @@ import {
   type RunWithSource,
   type Snapshot,
 } from "../../domain.ts";
+import type { GitInfo } from "@packages/domain/src/domain.ts";
 import { Queue } from "bullmq";
 import {
   getDb,
   logger,
   services,
-  type GitInfo,
   type SnapshotComparisonWorkerPayload,
 } from "../../index.ts";
 import { DateTime } from "luxon";
