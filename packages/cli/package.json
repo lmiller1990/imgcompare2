@@ -5,6 +5,9 @@
   "engines": {
     "node": ">=18"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@inquirer/prompts": "^8.4.1",
     "execa": "^9.6.1",
