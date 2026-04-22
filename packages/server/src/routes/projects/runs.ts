@@ -52,7 +52,7 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
       preHandler: [fastify.verifyUser, fastify.verifyProjectAccess],
     },
     async (req, reply) => {
-      logger.debug({ gitinfo: req.body.gitinfo }, "got new run");
+      logger.info({ gitinfo: req.body.gitinfo }, "got new run");
       const p = await fastify.db
         .select()
         .from(projects)
@@ -127,15 +127,15 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
       for (let i = 0; i < files.length; i++) {
         const fullPath = manifest?.[i]!;
         const file = files[i]!;
-        logger.debug(
+        logger.info(
           `File with path ${fullPath} received. File is ${JSON.stringify(file)}`,
         );
 
-        logger.debug(`Received screenshot ${file.filename}`);
+        logger.info(`Received screenshot ${file.filename}`);
         const imageS3Path = `${req.params.runId}/${file.filename}`;
         try {
           await services.snapshotService.store(imageS3Path, file);
-          logger.debug(`Uploaded file ${file.filename}`);
+          logger.info(`Uploaded file ${file.filename}`);
 
           await fastify.db.insert(snapshots).values({
             runId: req.params.runId,
@@ -161,7 +161,7 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
       );
 
       if (!bl) {
-        logger.debug("No baseline - skipping comparison!");
+        logger.info("No baseline - skipping comparison!");
         // no baseline - UI shall prompt user to simply "accept all"
         return reply.send();
       }
