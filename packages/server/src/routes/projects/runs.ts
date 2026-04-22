@@ -180,6 +180,8 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
           runId: req.params.runId,
         });
       }
+
+      return reply.send();
     },
   );
 
