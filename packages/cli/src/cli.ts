@@ -137,6 +137,7 @@ async function postScreenshots(
 ) {
   files = files.map((file) => path.relative(cwd, file));
   const form = new FormData();
+  debug("Posting files %o", files);
 
   form.append("manifest", JSON.stringify(files));
 
@@ -150,7 +151,7 @@ async function postScreenshots(
       body: form,
     });
   } catch (error) {
-    debug("Error posting to server: %o");
+    debug("Error posting to server: %s", error);
     //
   }
 }
@@ -274,7 +275,8 @@ set IMGCOMPARE_API_URL to point at your server (default: http://localhost)
   });
 
   child.on("exit", async (code, signal) => {
-    console.log(`Finished with ${code} and signal: ${signal}`);
+    debug(`Finished with ${code} and signal: ${signal}`);
+    console.log("Run complete. Finalizing screenshots and comparisons...");
 
     const files = await findAllScreenshots(process.cwd());
     await postScreenshots(process.cwd(), config.projectId, runId, files);

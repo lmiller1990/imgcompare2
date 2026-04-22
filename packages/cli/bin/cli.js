@@ -116,6 +116,7 @@ async function findAllScreenshots(cwd) {
 async function postScreenshots(cwd, projectId, runId, files) {
     files = files.map((file) => path.relative(cwd, file));
     const form = new FormData();
+    debug("Posting files %o", files);
     form.append("manifest", JSON.stringify(files));
     for (const path of files) {
         const buffer = await fs.promises.readFile(path);
@@ -127,7 +128,7 @@ async function postScreenshots(cwd, projectId, runId, files) {
         });
     }
     catch (error) {
-        debug("Error posting to server: %o");
+        debug("Error posting to server: %s", error);
         //
     }
 }
@@ -190,6 +191,9 @@ export async function run(process) {
     cleanArgs = cleanArgs[0] === "--" ? cleanArgs.slice(1) : cleanArgs;
     debug("Running with cwd %s and args %o", process.cwd(), cleanArgs);
     const [cmd, ...args] = cleanArgs;
+    if (!cmd) {
+        throw new Error(`You need to pass a command, eg pnpm exec <tool> playwright test`);
+    }
     if (!cmd || cmd === "help" || cmd === "--help" || cmd === "-h") {
         console.log(`
 exec prefers <cwd>/node_modules/.bin (like pnpm exec)
@@ -205,40 +209,19 @@ set IMGCOMPARE_API_URL to point at your server (default: http://localhost)
         await signup();
         return;
     }
-
-    // `imgcompare exec <cmd> [...args]` runs an arbitrary child command.
-    // Without this, we'd try to spawn a binary literally named "exec".
-    let childCmd = cmd;
-    let childArgs = args;
-    if (cmd === "exec") {
-        childCmd = args[0];
-        childArgs = args.slice(1);
-        if (!childCmd) {
-            throw new Error("Usage: imgcompare exec <cmd> [...args]");
-        }
-    }
-
     const config = await loadConfig();
     debug("Loaded config: %o", config);
     const gitinfo = await maybeGetGitInfo();
     const { id: runId } = await createRun(config.projectId, gitinfo);
     debug("Created a run %s", runId);
-
-    // Prefer local project binaries like `pnpm exec`.
-    const localBin = path.join(process.cwd(), "node_modules", ".bin");
-    const env = {
-        ...process.env,
-        PATH: [localBin, process.env.PATH].filter(Boolean).join(path.delimiter),
-    };
-
-    debug("Spawning child process with cmd: %s and args %o", childCmd, childArgs);
-    const child = spawn(childCmd, childArgs, {
+    debug("Spawning child process with cmd: %s and args %o", cmd, args);
+    const child = spawn(cmd, args, {
         stdio: "inherit",
         shell: false,
-        env,
     });
     child.on("exit", async (code, signal) => {
-        console.log(`Finished with ${code} and signal: ${signal}`);
+        debug(`Finished with ${code} and signal: ${signal}`);
+        console.log("Run complete. Finalizing screenshots and comparisons...");
         const files = await findAllScreenshots(process.cwd());
         await postScreenshots(process.cwd(), config.projectId, runId, files);
         await markRunAsComplete(config.projectId, runId);
