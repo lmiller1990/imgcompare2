@@ -1,5 +1,5 @@
 provider "aws" {
-  region = "ap-southeast-2"
+  region  = "ap-southeast-2"
   profile = "terraform"
 }
 
@@ -34,12 +34,49 @@ resource "aws_iam_role" "imgcompare" {
       {
         Effect = "Allow"
         Principal = {
-          AWS = "arn:aws:iam::058664348318:user/terraform"
+          AWS = [
+            "arn:aws:iam::058664348318:user/terraform",
+            aws_iam_user.home_server.arn
+          ]
         }
         Action = "sts:AssumeRole"
       }
     ]
   })
+}
+
+############################
+# IAM User (home server)
+############################
+
+# Long-lived access keys for this user should be created outside Terraform,
+# otherwise the secret ends up in Terraform state.
+resource "aws_iam_user" "home_server" {
+  name = "home-server"
+}
+
+resource "aws_iam_policy" "home_server_assume_imgcompare" {
+  name = "home-server-assume-imgcompare"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "sts:AssumeRole"
+        ]
+        Resource = [
+          aws_iam_role.imgcompare.arn
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_user_policy_attachment" "home_server_assume_imgcompare" {
+  user       = aws_iam_user.home_server.name
+  policy_arn = aws_iam_policy.home_server_assume_imgcompare.arn
 }
 
 ############################

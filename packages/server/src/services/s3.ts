@@ -1,5 +1,4 @@
 import path from "node:path";
-import type { MultipartFile } from "@fastify/multipart";
 import {
   S3Client,
   HeadBucketCommand,
@@ -14,7 +13,7 @@ import type { Readable } from "node:stream";
 export const rootBucket = "lcm-au-imgcompare-screenshots";
 export const s3 = new S3Client({
   region: "ap-southeast-2",
-  profile: "terraform",
+  profile: process.env.AWS_PROFILE ?? "terraform",
 });
 
 interface Uploadable {
