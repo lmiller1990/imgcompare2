@@ -2,16 +2,14 @@ import path from "node:path";
 import {
   S3Client,
   HeadBucketCommand,
-  CreateBucketCommand,
   GetObjectCommand,
-  PutObjectCommand,
 } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
-import type { FastifyLogFn, FastifyRegister, FastifyRequest } from "fastify";
+import type { FastifyRequest } from "fastify";
 import type { Readable } from "node:stream";
 import { logger } from "../index.ts";
 
-logger.info("Creating S3 client with profile: %s", process.env.AWS_PROFILE);
+logger.info(`Creating S3 client with profile: ${process.env.AWS_PROFILE}`);
 
 export const rootBucket = "lcm-au-imgcompare-screenshots";
 export const s3 = new S3Client({
