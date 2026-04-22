@@ -2,7 +2,7 @@
 
 import { spawn } from "node:child_process";
 import debugLib from "debug";
-import { globby } from "globby";
+import { globby, type GitignoreOptions } from "globby";
 import { simpleGit } from "simple-git";
 import { input, password as passwordPrompt } from "@inquirer/prompts";
 import type { GitInfo } from "@packages/domain/src/domain.js";
@@ -15,7 +15,8 @@ const debug = debugLib("imgcompare:cli");
 const TOKEN_PATH = path.join(os.homedir(), ".imgtoken");
 
 const api = ky.extend({
-  baseUrl: process.env.SERVER_URL ?? "https://imgcompare.lachlan-miller.me/api",
+  baseUrl:
+    process.env.SERVER_URL ?? "https://imgcompare.lachlan-miller.me/api/",
   hooks: {
     beforeRequest: [
       async ({ request }) => {
@@ -28,25 +29,32 @@ const api = ky.extend({
   },
 });
 
-export async function getGitInfo(): Promise<GitInfo | undefined> {
-  const git = simpleGit();
+export async function maybeGetGitInfo(): Promise<GitInfo | undefined> {
+  try {
+    const git = simpleGit();
 
-  const log = await git.log({ maxCount: 1 });
-  const branchSummary = await git.branch();
+    const log = await git.log({ maxCount: 1 });
+    const branchSummary = await git.branch();
 
-  const latest = log.latest;
+    const latest = log.latest;
 
-  if (!latest) {
-    debug("Use is not using git. Ignoring.");
-    return;
+    if (!latest) {
+      debug("Use is not using git. Ignoring.");
+      return;
+    }
+
+    return {
+      hash: latest.hash,
+      authorName: latest.author_name,
+      authorEmail: latest.author_email,
+      branch: branchSummary.current,
+    };
+  } catch (e) {
+    debug(
+      "Use is not using git, or another error in getting git info. Ignoring. Error was %s",
+      e,
+    );
   }
-
-  return {
-    hash: latest.hash,
-    authorName: latest.author_name,
-    authorEmail: latest.author_email,
-    branch: branchSummary.current,
-  };
 }
 
 async function getStoredToken() {
@@ -99,8 +107,7 @@ async function login() {
   }
 }
 
-async function createRun(projectId: string) {
-  const gitinfo = await getGitInfo();
+async function createRun(projectId: string, gitinfo?: GitInfo) {
   debug("Creating run... %o");
   const res = await (
     await api.post<{ id: string }>(`projects/${projectId}/runs`, {
@@ -250,7 +257,8 @@ set IMGCOMPARE_API_URL to point at your server (default: http://localhost)
   const config = await loadConfig();
   debug("Loaded config: %o");
 
-  const { id: runId } = await createRun(config.projectId);
+  const gitinfo = await maybeGetGitInfo();
+  const { id: runId } = await createRun(config.projectId, gitinfo);
   debug("Created a run %s", runId);
 
   const child = spawn(cmd, args, {
