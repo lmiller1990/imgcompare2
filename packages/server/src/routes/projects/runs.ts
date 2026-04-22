@@ -10,8 +10,7 @@ import {
   baselines,
 } from "../../db/schema.ts";
 import { and, eq } from "drizzle-orm";
-import { rootBucket, s3, S3SnapshotService } from "../../services/s3.ts";
-import path from "node:path";
+import { rootBucket, s3 } from "../../services/s3.ts";
 import {
   findComparisonsForCompleteResults,
   getActiveBaselineForProject,
@@ -37,13 +36,14 @@ import type { GitInfo } from "@packages/domain/src/domain.ts";
 import { Queue } from "bullmq";
 import {
   getDb,
-  logger,
   services,
   type SnapshotComparisonWorkerPayload,
 } from "../../index.ts";
 import { DateTime } from "luxon";
+import pino from "pino";
 
 const queue = new Queue<SnapshotComparisonWorkerPayload>("diff");
+const logger = pino({ level: "debug" });
 
 export const projectRunsRoutesPlugin = fp(async (fastify) => {
   fastify.post<{ Params: { projectId: string }; Body: { gitinfo: GitInfo } }>(
@@ -52,7 +52,7 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
       preHandler: [fastify.verifyUser, fastify.verifyProjectAccess],
     },
     async (req, reply) => {
-      req.log.debug({ gitinfo: req.body.gitinfo }, "got new run");
+      logger.debug({ gitinfo: req.body.gitinfo }, "got new run");
       const p = await fastify.db
         .select()
         .from(projects)
@@ -127,19 +127,27 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
       for (let i = 0; i < files.length; i++) {
         const fullPath = manifest?.[i]!;
         const file = files[i]!;
-        req.log.info(`File with path ${fullPath} received. File is %o`, file);
+        logger.debug(
+          `File with path ${fullPath} received. File is ${JSON.stringify(file)}`,
+        );
 
-        req.log.debug(`Received screenshot ${file.filename}`);
+        logger.debug(`Received screenshot ${file.filename}`);
         const imageS3Path = `${req.params.runId}/${file.filename}`;
-        await services.snapshotService.store(imageS3Path, file);
-        req.log.child({ file: file.filename }).debug("Uploaded file");
+        try {
+          await services.snapshotService.store(imageS3Path, file);
+          logger.debug(`Uploaded file ${file.filename}`);
 
-        await fastify.db.insert(snapshots).values({
-          runId: req.params.runId,
-          name: fullPath,
-          status: "pending",
-          imageS3Path,
-        });
+          await fastify.db.insert(snapshots).values({
+            runId: req.params.runId,
+            name: fullPath,
+            status: "pending",
+            imageS3Path,
+          });
+        } catch (e) {
+          logger.error(
+            `Failed to upload ${file} to ${imageS3Path} with error ${e}`,
+          );
+        }
       }
 
       await patchRun(fastify.db, req.params.runId, {
@@ -153,7 +161,7 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
       );
 
       if (!bl) {
-        req.log.debug("No baseline - skipping comparison!");
+        logger.debug("No baseline - skipping comparison!");
         // no baseline - UI shall prompt user to simply "accept all"
         return reply.send();
       }

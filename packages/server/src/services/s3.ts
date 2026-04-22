@@ -33,18 +33,16 @@ interface SnapshotService {
 
 export class S3SnapshotService implements SnapshotService {
   dir: string;
-  logger: FastifyRequest["log"];
 
   constructor(_dir: string, _logger: FastifyRequest["log"]) {
     this.dir = _dir;
-    this.logger = _logger;
   }
 
   async ensureDirExists() {
     try {
       await s3.send(new HeadBucketCommand({ Bucket: this.dir }));
     } catch (err) {
-      this.logger.error(`Failed to create S3 bucket: ${err}`);
+      logger.error(`Failed to create S3 bucket: ${err}`);
     }
   }
 
@@ -61,7 +59,7 @@ export class S3SnapshotService implements SnapshotService {
   }
 
   async get(key: string): Promise<Buffer> {
-    this.logger.debug(`Fetching key ${key}`);
+    logger.debug(`Fetching key ${key}`);
     const obj = await s3.send(
       new GetObjectCommand({
         Bucket: this.dir,
