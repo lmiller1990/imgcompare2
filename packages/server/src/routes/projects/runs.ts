@@ -101,6 +101,7 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
       preHandler: [fastify.verifyUser],
     },
     async (req, reply) => {
+      logger.info(`Received finalize request for run ${req.params.runId}`);
       await services.snapshotService.ensureDirExists();
 
       let manifest: string[] = [];
