@@ -21,10 +21,6 @@ const {
   route.params.runId as string,
 );
 
-watchEffect(() => {
-  console.log(error.value)
-})
-
 function formatPercent(value: number) {
   return (value * 100).toFixed(2) + "%";
 }
