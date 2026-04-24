@@ -7,32 +7,27 @@ import { useKy } from "./composables/ky";
 import { HTTPError } from "ky";
 import { useRouter } from "vue-router";
 import { useQuery } from "@pinia/colada";
-
-async function getProjects(): Promise<{ projects: ProjectsForUser }> {
-  const ky = useKy();
-  const res = await ky.get<{ projects: ProjectsForUser }>("/api/me");
-  return res.json();
-}
-
 export function useProjectsQuery() {
+  const ky = useKy();
   return useQuery({
     key: () => ["me"],
-    query: () => getProjects(),
+    query: async () => {
+      const res = await ky.get<{ projects: ProjectsForUser }>("/api/me");
+      return res.json();
+    },
   });
 }
 
-async function getProjectRunWithResults(projectId: string, runId: string) {
-  const ky = useKy();
-  const res = await ky.get<RunWithResultDto>(
-    `/api/projects/${projectId}/runs/${runId}`,
-  );
-  return res.json();
-}
-
 export function useProjectRunQuery(projectId: string, runId: string) {
+  const ky = useKy();
   return useQuery({
     key: () => ["projectRun", projectId, runId],
-    query: () => getProjectRunWithResults(projectId, runId),
+    query: async () => {
+      const res = await ky.get<RunWithResultDto>(
+        `/api/projects/${projectId}/runs/${runId}`,
+      );
+      return res.json();
+    },
   });
 }
 
@@ -40,24 +35,6 @@ export async function getProject(projectId: string): Promise<ProjectView> {
   const ky = useKy();
   const res = await ky.get<ProjectView>(`/api/projects/${projectId}/runs`);
   return res.json();
-}
-
-async function getMe() {
-  const ky = useKy();
-  const router = useRouter();
-  try {
-    const res = await ky.get<ProjectsForUser>("/api/me");
-    return res.json();
-  } catch (e) {
-    if (e instanceof HTTPError) {
-      if (e.response.status === 401) {
-        console.info("/api/me returned 401 - need to reauthenticate");
-        router.push("/login");
-      } else {
-        throw e;
-      }
-    }
-  }
 }
 
 export async function signUp(email: string, password: string): Promise<void> {
@@ -68,8 +45,24 @@ export async function signUp(email: string, password: string): Promise<void> {
 }
 
 export function useMeQuery() {
+  const ky = useKy();
+  const router = useRouter();
   return useQuery({
     key: () => ["me"],
-    query: () => getMe(),
+    query: async () => {
+      try {
+        const res = await ky.get<ProjectsForUser>("/api/me");
+        return res.json();
+      } catch (e) {
+        if (e instanceof HTTPError) {
+          if (e.response.status === 401) {
+            console.info("/api/me returned 401 - need to reauthenticate");
+            router.push("/login");
+          } else {
+            throw e;
+          }
+        }
+      }
+    },
   });
 }
