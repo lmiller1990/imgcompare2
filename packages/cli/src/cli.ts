@@ -13,21 +13,26 @@ import os from "os";
 
 const debug = debugLib("imgcompare:cli");
 const TOKEN_PATH = path.join(os.homedir(), ".imgtoken");
+const DEFAULT_SERVER_URL =
+  process.env.SERVER_URL ?? "https://imgcompare.lachlan-miller.me/api/";
 
-const api = ky.extend({
-  baseUrl:
-    process.env.SERVER_URL ?? "https://imgcompare.lachlan-miller.me/api/",
-  hooks: {
-    beforeRequest: [
-      async ({ request }) => {
-        const token = await getStoredToken();
-        if (token) {
-          request.headers.set("Authorization", `Bearer ${token}`);
-        }
-      },
-    ],
-  },
-});
+function makeApi(baseUrl: string) {
+  return ky.extend({
+    baseUrl,
+    hooks: {
+      beforeRequest: [
+        async ({ request }) => {
+          const token = await getStoredToken();
+          if (token) {
+            request.headers.set("Authorization", `Bearer ${token}`);
+          }
+        },
+      ],
+    },
+  });
+}
+
+let api = makeApi(DEFAULT_SERVER_URL);
 
 export async function maybeGetGitInfo(): Promise<GitInfo | undefined> {
   try {
@@ -57,20 +62,61 @@ export async function maybeGetGitInfo(): Promise<GitInfo | undefined> {
   }
 }
 
+interface TokenFile {
+  token: string;
+  projects?: Record<string, { token: string }>;
+}
+
 async function getStoredToken() {
-  if (!fs.existsSync(TOKEN_PATH)) return null;
+  if (!fs.existsSync(TOKEN_PATH)) return undefined;
   try {
-    const data = JSON.parse(await fs.promises.readFile(TOKEN_PATH, "utf-8"));
+    const data: TokenFile = JSON.parse(
+      await fs.promises.readFile(TOKEN_PATH, "utf-8"),
+    );
     return data.token;
   } catch {
     //
   }
 }
 
-async function saveToken(token: string) {
-  fs.promises.writeFile(TOKEN_PATH, JSON.stringify({ token }), {
+async function saveToken(token: string, projectId?: string) {
+  let existing: TokenFile = { token };
+  if (fs.existsSync(TOKEN_PATH)) {
+    try {
+      existing = JSON.parse(await fs.promises.readFile(TOKEN_PATH, "utf-8"));
+    } catch {
+      //
+    }
+  }
+
+  const updated: TokenFile = {
+    ...existing,
+    token,
+    ...(projectId && {
+      projects: {
+        ...existing.projects,
+        [projectId]: { token },
+      },
+    }),
+  };
+
+  await fs.promises.writeFile(TOKEN_PATH, JSON.stringify(updated), {
     mode: 0o600,
   });
+}
+
+async function maybeReadLocalConfig(): Promise<
+  { projectId?: string; serverUrl?: string } | undefined
+> {
+  try {
+    const data = await fs.promises.readFile(
+      path.join(process.cwd(), "config.json"),
+      "utf-8",
+    );
+    return JSON.parse(data);
+  } catch {
+    //
+  }
 }
 
 export async function promptCredentials() {
@@ -87,33 +133,34 @@ export async function promptCredentials() {
 }
 
 async function signup() {
+  const localConfig = await maybeReadLocalConfig();
+  const serverUrl = localConfig?.serverUrl ?? DEFAULT_SERVER_URL;
+  const authApi = makeApi(serverUrl);
+
   const { email, password } = await promptCredentials();
   try {
-    const res = await api.post<{ token: string }>("signup", {
-      json: {
-        email,
-        password,
-      },
+    const res = await authApi.post<{ token: string }>("signup", {
+      json: { email, password },
     });
-    await saveToken((await res.json()).token);
+    await saveToken((await res.json()).token, localConfig?.projectId);
     console.log("Welcome aboard!");
   } catch (error) {
     console.error(`Error occurred: ${error}`);
     debug("Error %s", error);
-    //
   }
 }
 
 async function login() {
+  const localConfig = await maybeReadLocalConfig();
+  const serverUrl = localConfig?.serverUrl ?? DEFAULT_SERVER_URL;
+  const authApi = makeApi(serverUrl);
+
   const { email, password } = await promptCredentials();
   try {
-    const res = await api.post<{ token: string }>("login", {
-      json: {
-        email,
-        password,
-      },
+    const res = await authApi.post<{ token: string }>("login", {
+      json: { email, password },
     });
-    await saveToken((await res.json()).token);
+    await saveToken((await res.json()).token, localConfig?.projectId);
     console.log("Logged in.");
   } catch (error) {
     console.error("Invalid email or password. Error %s");
@@ -202,7 +249,10 @@ async function createNewProject() {
   return json.id;
 }
 
-async function loadConfig(): Promise<{ projectId: string }> {
+async function loadConfig(): Promise<{
+  projectId: string;
+  serverUrl?: string;
+}> {
   const configPath = path.join(process.cwd(), "config.json");
 
   try {
@@ -214,7 +264,7 @@ async function loadConfig(): Promise<{ projectId: string }> {
     if (e.code === "ENOENT") {
       const projectId = await createNewProject();
 
-      const defaultConfig = { projectId };
+      const defaultConfig = { projectId, serverUrl: DEFAULT_SERVER_URL };
       await fs.promises.writeFile(
         configPath,
         JSON.stringify(defaultConfig, null, 2),
@@ -284,6 +334,10 @@ set IMGCOMPARE_API_URL to point at your server (default: http://localhost)
 
   const config = await loadConfig();
   debug("Loaded config: %o", config);
+
+  if (config.serverUrl) {
+    api = makeApi(config.serverUrl);
+  }
 
   const gitinfo = await maybeGetGitInfo();
   const { id: runId } = await createRun(config.projectId, gitinfo);
