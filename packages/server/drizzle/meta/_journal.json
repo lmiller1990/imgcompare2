@@ -57,6 +57,20 @@
       "when": 1776763697043,
       "tag": "0007_freezing_the_hood",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1777029686577,
+      "tag": "0008_vengeful_maverick",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1777030681787,
+      "tag": "0009_early_mordo",
+      "breakpoints": true
     }
   ]
 }

@@ -40,6 +40,14 @@ export async function createApp(
     .register(projectRoutesPlugin)
     .register(projectRunsRoutesPlugin);
 
+  fastify.addContentTypeParser(
+    "image/png",
+    { parseAs: "buffer" },
+    (req, body, done) => {
+      done(null, body);
+    },
+  );
+
   fastify.get("/health", async () => {
     return { status: "ok" };
   });

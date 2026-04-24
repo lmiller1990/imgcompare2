@@ -4,3 +4,10 @@ export type GitInfo = {
   authorEmail: string;
   branch: string;
 };
+
+export interface RunManifest {
+  screenshots: Array<{
+    name: string;
+    fullPath: string;
+  }>;
+}

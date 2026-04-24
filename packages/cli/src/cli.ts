@@ -5,7 +5,7 @@ import debugLib from "debug";
 import { globby, type GitignoreOptions } from "globby";
 import { simpleGit } from "simple-git";
 import { input, password as passwordPrompt } from "@inquirer/prompts";
-import type { GitInfo } from "@packages/domain/src/domain.js";
+import type { GitInfo, RunManifest } from "@packages/domain/src/domain.js";
 import fs from "fs";
 import path from "node:path";
 import ky from "ky";
@@ -73,6 +73,19 @@ async function saveToken(token: string) {
   });
 }
 
+export async function promptCredentials() {
+  const email = await input({
+    message: "Enter your email",
+    required: true,
+  });
+
+  const password = await passwordPrompt({
+    message: "Enter a password",
+  });
+
+  return { email, password };
+}
+
 async function signup() {
   const { email, password } = await promptCredentials();
   try {
@@ -129,44 +142,48 @@ async function findAllScreenshots(cwd: string) {
   return files;
 }
 
+export function postScreenshot() {
+  //
+}
+
 async function postScreenshots(
   cwd: string,
   projectId: string,
   runId: string,
   files: string[],
 ) {
-  files = files.map((file) => path.relative(cwd, file));
-  const form = new FormData();
+  const screenshots: RunManifest["screenshots"] = files.map((file) => {
+    return { fullPath: file, name: path.relative(cwd, file) };
+  });
+
   debug("Posting files %o", files);
 
-  form.append("manifest", JSON.stringify(files));
+  const manifest: RunManifest = {
+    screenshots,
+  };
 
-  for (const path of files) {
-    const buffer = await fs.promises.readFile(path);
-    form.append("screenshots", new Blob([buffer]), path.split("/").pop());
-  }
-
-  try {
-    await api.post(`projects/${projectId}/run/${runId}/finalize`, {
-      body: form,
-    });
-  } catch (error) {
-    debug("Error posting to server: %s", error);
-    //
-  }
-}
-
-export async function promptCredentials() {
-  const email = await input({
-    message: "Enter your email",
-    required: true,
+  await api.post(`projects/${projectId}/run/${runId}/precommit`, {
+    json: manifest,
   });
 
-  const password = await passwordPrompt({
-    message: "Enter a password",
-  });
+  for (const ss of screenshots) {
+    const buffer = await fs.promises.readFile(ss.fullPath);
+    // form.append("screenshots", new Blob([buffer]), path.split("/").pop());
 
-  return { email, password };
+    try {
+      await api.post(`projects/${projectId}/run/${runId}/screenshots`, {
+        body: buffer,
+        headers: {
+          "content-type": "image/png",
+          "x-path": ss.fullPath, // send metadata via headers if needed
+          "x-name": ss.name, // send metadata via headers if needed
+        },
+      });
+    } catch (error) {
+      debug("Error posting to server: %s", error);
+      //
+    }
+  }
 }
 
 async function createNewProject() {
@@ -221,11 +238,15 @@ Please review and update it as needed.
 }
 
 async function markRunAsComplete(projectId: string, runId: string) {
+  // TODO why double request here - can we just have one
   await api.patch(`projects/${projectId}/run/${runId}`, {
     json: {
       status: "unreviewed",
     },
   });
+
+  // start comparison process
+  await api.post(`projects/${projectId}/run/${runId}/finalize`);
 }
 
 export async function run(process: NodeJS.Process) {

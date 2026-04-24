@@ -1,11 +1,12 @@
 import { and, eq, sql } from "drizzle-orm";
-import type { DB, GitInfo } from "../index.ts";
+import type { DB } from "../index.ts";
 import {
   baselines,
   comparisons,
   runApprovals,
   runs,
   runSources,
+  runManifests,
   snapshots,
 } from "./schema.ts";
 import type {
@@ -20,6 +21,7 @@ import type {
 } from "../domain.ts";
 import { alias } from "drizzle-orm/pg-core";
 import pRetry from "p-retry";
+import type { GitInfo } from "@packages/domain/src/domain.ts";
 
 type SnapshotTuple = [string, string];
 
@@ -222,6 +224,14 @@ export async function insertRunSource(
   }
 
   return mapRunSource(inserted[0]);
+}
+
+export async function insertRunManifest(
+  db: DB,
+  params: typeof runManifests.$inferInsert,
+) {
+  const record = await db.insert(runManifests).values(params).returning();
+  return record[0]!;
 }
 
 export async function insertComparison(

@@ -5,7 +5,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "DEBUG=imgcompare:* SERVER_URL=localhost:8070 node ../packages/cli/index.ts -- playwright test",
+    "test": "DEBUG=imgcompare:* SERVER_URL=http://localhost:8070 node ../packages/cli/src/cli.ts -- playwright test",
     "start": "pnpm serve . -p 3003"
   },
   "keywords": [],

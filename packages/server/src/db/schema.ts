@@ -9,6 +9,7 @@ import {
   unique,
   numeric,
   integer,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -95,6 +96,14 @@ export const runApprovals = pgTable("run_approvals", {
     .notNull(),
 });
 
+export const runManifests = pgTable("run_manifests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  runId: uuid("run_id")
+    .notNull()
+    .references(() => runs.id, { onDelete: "cascade" }),
+  manifest: jsonb("manifest").notNull(),
+});
+
 export const baselines = pgTable("baselines", {
   id: uuid("id").primaryKey().defaultRandom(),
   projectId: uuid("project_id")
@@ -160,6 +169,13 @@ export const runSourcesRelations = relations(runSources, ({ one }) => ({
   }),
 }));
 
+export const runManifestRelations = relations(runSources, ({ one }) => ({
+  run: one(runs, {
+    fields: [runSources.runId],
+    references: [runs.id],
+  }),
+}));
+
 export const runsRelations = relations(runs, ({ one, many }) => ({
   project: one(projects, {
     fields: [runs.projectId],
@@ -167,6 +183,7 @@ export const runsRelations = relations(runs, ({ one, many }) => ({
   }),
   snapshots: many(snapshots),
   source: one(runSources),
+  manifest: one(runManifests),
   approval: one(runApprovals),
 }));
 

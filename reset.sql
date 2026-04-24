@@ -1,4 +1,4 @@
- docker exec -it visual-tester-postgres-1 psql -U postgres -d images -c "
+docker exec -it imgcompare-postgres psql -U imgcompare -d imgcompare -c "
   DELETE FROM comparisons;
   DELETE FROM baselines;
   DELETE FROM run_approvals;

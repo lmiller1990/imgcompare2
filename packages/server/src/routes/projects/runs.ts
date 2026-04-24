@@ -18,6 +18,7 @@ import {
   getRunById,
   getRunsForProject,
   insertRun,
+  insertRunManifest,
   insertRunSource,
   mappers,
   mapRun,
@@ -32,7 +33,7 @@ import {
   type RunWithSource,
   type Snapshot,
 } from "../../domain.ts";
-import type { GitInfo } from "@packages/domain/src/domain.ts";
+import type { GitInfo, RunManifest } from "@packages/domain/src/domain.ts";
 import { Queue } from "bullmq";
 import {
   getDb,
@@ -41,6 +42,7 @@ import {
 } from "../../index.ts";
 import { DateTime } from "luxon";
 import pino from "pino";
+import { Readable } from "node:stream";
 
 const queue = new Queue<SnapshotComparisonWorkerPayload>("diff");
 const logger = pino({ level: "debug" });
@@ -95,61 +97,83 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
     },
   );
 
-  fastify.post<{ Params: { projectId: string; runId: string } }>(
-    "/projects/:projectId/run/:runId/finalize",
+  // we need to know how many screenshots we *expect*
+  // so we know when we've got them all.
+  fastify.post<{
+    Params: { projectId: string; runId: string };
+    Body: RunManifest;
+  }>(
+    "/projects/:projectId/run/:runId/precommit",
     {
-      preHandler: [fastify.verifyUser],
+      preHandler: [fastify.verifyUser, fastify.verifyProjectAccess],
+    },
+    async (req, reply) => {
+      req.log.debug({ manifest: req.body }, `Got manifest`);
+      await insertRunManifest(fastify.db, {
+        runId: req.params.runId,
+        manifest: req.body,
+      });
+      reply.status(203).send();
+    },
+  );
+
+  fastify.post<{
+    Params: { projectId: string; runId: string };
+    Body: Buffer;
+    Headers: {
+      "content-type": string;
+      "x-path": string;
+      "x-name": string;
+    };
+  }>(
+    "/projects/:projectId/run/:runId/screenshots",
+    {
+      preHandler: [fastify.verifyUser, fastify.verifyProjectAccess],
     },
     async (req, reply) => {
       logger.info(`Received finalize request for run ${req.params.runId}`);
       await services.snapshotService.ensureDirExists();
+      const fpath = req.headers["x-path"];
+      const fname = req.headers["x-name"];
 
-      let manifest: string[] = [];
-      const files: MultipartFile[] = [];
+      logger.info(`Received screenshot ${fpath}`);
+      const imageS3Path = `${req.params.runId}/${req.headers["x-name"]}`;
 
-      for await (const part of req.parts()) {
-        if (part.type === "field" && part.fieldname === "manifest") {
-          manifest = JSON.parse(part.value as string);
-          continue;
-        }
+      // logger.info(
+      //   `File with path ${fullPath} received. File is ${JSON.stringify(file)}`,
+      // );
 
-        if (part.type === "file" && part.fieldname === "screenshots") {
-          files.push(part);
-        }
-      }
+      logger.info(`Received screenshot. name: ${fname} path: ${fpath}`);
 
-      if (manifest.length !== files.length) {
-        throw Error(
-          `Expected manifest to have exactly one entry per file. Got manifest.length ${manifest.length} files.length ${files.length}`,
+      // const imageS3Path = `${req.params.runId}/${file.filename}`;
+
+      try {
+        await services.snapshotService.store(imageS3Path, {
+          mimetype: req.headers["content-type"],
+          file: Readable.from(req.body),
+        });
+
+        await fastify.db.insert(snapshots).values({
+          runId: req.params.runId,
+          name: fpath,
+          status: "pending",
+          imageS3Path,
+        });
+      } catch (e) {
+        logger.error(
+          `Failed to upload ${fpath} to ${imageS3Path} with error ${e}`,
         );
       }
+    },
+  );
 
-      // now process once you have both
-      for (let i = 0; i < files.length; i++) {
-        const fullPath = manifest?.[i]!;
-        const file = files[i]!;
-        logger.info(
-          `File with path ${fullPath} received. File is ${JSON.stringify(file)}`,
-        );
-
-        logger.info(`Received screenshot ${file.filename}`);
-        const imageS3Path = `${req.params.runId}/${file.filename}`;
-        try {
-          await services.snapshotService.store(imageS3Path, file);
-          logger.info(`Uploaded file ${file.filename}`);
-
-          await fastify.db.insert(snapshots).values({
-            runId: req.params.runId,
-            name: fullPath,
-            status: "pending",
-            imageS3Path,
-          });
-        } catch (e) {
-          logger.error(
-            `Failed to upload ${file} to ${imageS3Path} with error ${e}`,
-          );
-        }
-      }
+  fastify.post<{ Params: { projectId: string; runId: string } }>(
+    "/projects/:projectId/run/:runId/finalize",
+    {
+      preHandler: [fastify.verifyUser, fastify.verifyProjectAccess],
+    },
+    async (req, reply) => {
+      logger.info(`Received finalize request for run ${req.params.runId}`);
 
       await patchRun(fastify.db, req.params.runId, {
         completedAt: new Date(),
