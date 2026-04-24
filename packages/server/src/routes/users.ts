@@ -9,6 +9,8 @@ const salt = 12;
 const cookieOpts = { httpOnly: true, sameSite: "strict", path: "/" } as const;
 
 export const userRoutesPlugin = fp(async (fastify) => {
+  fastify.log.info("Registered user routes plugin");
+
   fastify.post<{ Body: { email: string; password: string } }>(
     "/signup",
     async (req, reply) => {
@@ -54,7 +56,7 @@ export const userRoutesPlugin = fp(async (fastify) => {
     reply.send({ ok: true });
   });
 
-  fastify.get<{ Body: { name: string } }>(
+  fastify.get(
     "/me",
     {
       preHandler: [fastify.verifyUser],

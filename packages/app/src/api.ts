@@ -39,6 +39,7 @@ export async function getProject(projectId: string): Promise<ProjectView> {
 
 export async function signUp(email: string, password: string): Promise<void> {
   const ky = useKy();
+  console.log("Posting...");
   await ky.post("/api/signup", {
     json: { email, password },
   });

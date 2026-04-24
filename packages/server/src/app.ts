@@ -36,9 +36,10 @@ export async function createApp(
     .register(verifyJwtPlugin)
     .register(verifyProjectAccessPlugin)
     .register(multipart)
-    .register(userRoutesPlugin)
-    .register(projectRoutesPlugin)
-    .register(projectRunsRoutesPlugin);
+    // routes
+    .register(userRoutesPlugin, { prefix: "/api" })
+    .register(projectRoutesPlugin, { prefix: "/api" })
+    .register(projectRunsRoutesPlugin, { prefix: "/api" });
 
   fastify.addContentTypeParser(
     "image/png",
