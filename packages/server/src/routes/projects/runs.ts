@@ -1,4 +1,3 @@
-import fp from "fastify-plugin";
 import "dotenv/config";
 import {
   snapshots,
@@ -41,6 +40,7 @@ import {
 import { DateTime } from "luxon";
 import pino from "pino";
 import { Readable } from "node:stream";
+import type { FastifyInstance } from "fastify";
 
 const queue = new Queue<SnapshotComparisonWorkerPayload>("diff");
 const logger = pino({
@@ -51,7 +51,7 @@ const logger = pino({
   },
 });
 
-export const projectRunsRoutesPlugin = fp(async (fastify) => {
+export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
   fastify.post<{ Params: { projectId: string }; Body: { gitinfo: GitInfo } }>(
     "/projects/:projectId/runs",
     {
@@ -347,7 +347,7 @@ export const projectRunsRoutesPlugin = fp(async (fastify) => {
       });
     },
   );
-});
+};
 
 export interface ProjectView {
   name: string;

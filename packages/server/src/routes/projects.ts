@@ -1,9 +1,9 @@
-import fp from "fastify-plugin";
 import { projects, users } from "../db/schema.ts";
 import { eq } from "drizzle-orm";
 import { getProjectWithRunsAndBaseline } from "../db/queries.ts";
+import type { FastifyInstance } from "fastify";
 
-export const projectRoutesPlugin = fp(async (fastify) => {
+export const projectRoutesPlugin = async (fastify: FastifyInstance) => {
   fastify.post<{ Body: { name: string } }>(
     "/projects",
     {
@@ -50,4 +50,4 @@ export const projectRoutesPlugin = fp(async (fastify) => {
   //     reply.send(project);
   //   },
   // );
-});
+};

@@ -134,7 +134,7 @@ export async function promptCredentials() {
 }
 
 function normalizeServerUrl(url: string): string {
-  return url.replace(/\/+$/, "");
+  return url.replace(/\/+$/, "") + "/api";
 }
 
 async function init() {
@@ -151,7 +151,6 @@ async function init() {
   });
   let serverUrl = normalizeServerUrl(rawUrl);
   // we do not proxy using `api` locally
-  serverUrl = serverUrl.includes("localhost") ? serverUrl : `${serverUrl}/api`;
   const authApi = makeApi(serverUrl);
 
   const { email, password } = await promptCredentials();

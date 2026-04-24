@@ -1,14 +1,14 @@
-import fp from "fastify-plugin";
 import bcrypt from "bcrypt";
 import { users } from "../db/schema.ts";
 import { eq } from "drizzle-orm";
 import { getProjectsForUser } from "../db/projects.ts";
+import type { FastifyInstance } from "fastify";
 
 const salt = 12;
 
 const cookieOpts = { httpOnly: true, sameSite: "strict", path: "/" } as const;
 
-export const userRoutesPlugin = fp(async (fastify) => {
+export const userRoutesPlugin = async (fastify: FastifyInstance) => {
   fastify.log.info("Registered user routes plugin");
 
   fastify.post<{ Body: { email: string; password: string } }>(
@@ -67,4 +67,4 @@ export const userRoutesPlugin = fp(async (fastify) => {
       reply.send({ projects });
     },
   );
-});
+};
