@@ -4,7 +4,7 @@ ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
 
 WORKDIR /app
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
 COPY packages/app/package.json ./packages/app/package.json
 # app depends on @packages/server (workspace:*) for shared types
 COPY packages/server/package.json ./packages/server/package.json
