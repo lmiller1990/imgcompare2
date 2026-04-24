@@ -14,6 +14,7 @@ const {
   state: runState,
   asyncStatus,
   status,
+  error,
 } = useProjectRunQuery(
   route.params.projectId as string,
   route.params.runId as string,
@@ -34,7 +35,7 @@ async function handleApprove() {
 
 <template>
   <div v-if="asyncStatus === 'loading'">Loading...</div>
-  <div v-else-if="status === 'error'">Error :(</div>
+  <div v-else-if="status === 'error'">Error. {{ error }}</div>
   <template v-else-if="runState.data">
     <div v-if="runState.data.run.status === 'unreviewed'" class="my-2">
       <form @submit.prevent="handleApprove">
