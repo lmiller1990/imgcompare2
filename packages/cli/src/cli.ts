@@ -14,9 +14,10 @@ import os from "os";
 const debug = debugLib("imgcompare:cli");
 const TOKEN_PATH = path.join(os.homedir(), ".imgtoken");
 const DEFAULT_SERVER_URL =
-  process.env.SERVER_URL ?? "https://imgcompare.lachlan-miller.me/api/";
+  process.env.SERVER_URL ?? "https://imgcompare.lachlan-miller.me/";
 
 function makeApi(baseUrl: string) {
+  debug("Making API clien with base URL: %s", baseUrl);
   return ky.extend({
     baseUrl,
     hooks: {
@@ -130,6 +131,81 @@ export async function promptCredentials() {
   });
 
   return { email, password };
+}
+
+function normalizeServerUrl(url: string): string {
+  return url.replace(/\/+$/, "");
+}
+
+async function init() {
+  const configPath = path.join(process.cwd(), "config.json");
+
+  if (fs.existsSync(configPath)) {
+    console.log("config.json already exists. Nothing to do.");
+    return;
+  }
+
+  const rawUrl = await input({
+    message: "Server URL",
+    default: "https://imgcompare.lachlan-miller.me/",
+  });
+  let serverUrl = normalizeServerUrl(rawUrl);
+  // we do not proxy using `api` locally
+  serverUrl = serverUrl.includes("localhost") ? serverUrl : `${serverUrl}/api`;
+  const authApi = makeApi(serverUrl);
+
+  const { email, password } = await promptCredentials();
+
+  let token: string | undefined;
+
+  try {
+    const res = await authApi.post<{ token: string }>("login", {
+      json: { email, password },
+    });
+    token = (await res.json()).token;
+  } catch {
+    try {
+      const res = await authApi.post<{ token: string }>("signup", {
+        json: { email, password },
+      });
+      token = (await res.json()).token;
+    } catch (error) {
+      console.error("Failed to authenticate:", error);
+      process.exit(1);
+    }
+  }
+
+  // save token temporarily so makeApi's hook can pick it up
+  await saveToken(token!);
+  const projectApi = makeApi(serverUrl);
+
+  const projectName = await input({
+    message: "Project name",
+    required: true,
+  });
+
+  const res = await projectApi.post<{ id: string }>("projects", {
+    json: { name: projectName },
+  });
+  const { id: projectId } = await res.json();
+
+  await saveToken(token!, projectId);
+
+  await fs.promises.writeFile(
+    configPath,
+    JSON.stringify({ projectId, serverUrl }, null, 2),
+    "utf-8",
+  );
+
+  console.log(`
+Welcome! Your project has been initialized.
+
+  Project: ${projectName}
+  Server:  ${serverUrl}
+  Config:  ${configPath}
+
+Run your tests with: imgcompare <test-command>
+`);
 }
 
 async function signup() {
@@ -319,6 +395,11 @@ exec prefers <cwd>/node_modules/.bin (like pnpm exec)
 set IMGCOMPARE_API_URL to point at your server (default: http://localhost)
 `,
     );
+    return;
+  }
+
+  if (cmd === "init") {
+    await init();
     return;
   }
 
