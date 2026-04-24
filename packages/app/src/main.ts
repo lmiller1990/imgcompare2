@@ -54,8 +54,7 @@ app.use(installKy, router);
 app.use(createPinia());
 app.use(PiniaColada, {
   queryOptions: {
-    // change the stale time for all queries to 0ms
-    staleTime: 0,
+    refetchOnWindowFocus: false,
   },
   mutationOptions: {
     // add global mutation options here
