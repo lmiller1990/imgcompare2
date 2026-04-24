@@ -54,7 +54,7 @@ app.use(installKy, router);
 app.use(createPinia());
 app.use(PiniaColada, {
   queryOptions: {
-    refetchOnWindowFocus: false,
+    // refetchOnWindowFocus: false,
   },
   mutationOptions: {
     // add global mutation options here

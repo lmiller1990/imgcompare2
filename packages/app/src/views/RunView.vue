@@ -4,6 +4,7 @@ import { useKy } from "../composables/ky";
 import type { RunWithResultDto } from "@packages/server/src/routes/projects/runs";
 import { useToast } from "../composables/useToast";
 import { useProjectRunQuery } from "../api";
+import { watchEffect } from "vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -19,6 +20,10 @@ const {
   route.params.projectId as string,
   route.params.runId as string,
 );
+
+watchEffect(() => {
+  console.log(error.value)
+})
 
 function formatPercent(value: number) {
   return (value * 100).toFixed(2) + "%";
