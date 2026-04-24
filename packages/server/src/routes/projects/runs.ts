@@ -1,8 +1,6 @@
 import fp from "fastify-plugin";
-import { type MultipartFile } from "@fastify/multipart";
 import "dotenv/config";
 import {
-  users,
   snapshots,
   runs,
   projects,
@@ -45,7 +43,13 @@ import pino from "pino";
 import { Readable } from "node:stream";
 
 const queue = new Queue<SnapshotComparisonWorkerPayload>("diff");
-const logger = pino({ level: "debug" });
+const logger = pino({
+  level: "debug",
+  transport: {
+    target: "pino/file",
+    options: { destination: "./app.log" },
+  },
+});
 
 export const projectRunsRoutesPlugin = fp(async (fastify) => {
   fastify.post<{ Params: { projectId: string }; Body: { gitinfo: GitInfo } }>(
