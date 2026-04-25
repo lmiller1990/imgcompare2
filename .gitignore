@@ -1,3 +1,4 @@
 node_modules/
 .terraform
 *.png
+packages/cli/bin/cli.js

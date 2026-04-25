@@ -19,7 +19,7 @@ const DEFAULT_SERVER_URL =
 function makeApi(baseUrl: string) {
   debug("Making API client with base URL: %s", baseUrl);
   return ky.extend({
-    baseUrl,
+    prefix: baseUrl.replace(/\/+$/, "") + "/api",
     hooks: {
       beforeRequest: [
         async ({ request }) => {
@@ -135,7 +135,7 @@ export async function promptCredentials() {
 }
 
 function normalizeServerUrl(url: string): string {
-  return url.replace(/\/+$/, "") + "/api";
+  return url.replace(/\/+$/, "");
 }
 
 async function init() {
@@ -160,13 +160,13 @@ async function init() {
   let token: string | undefined;
 
   try {
-    const res = await authApi.post<{ token: string }>("login", {
+    const res = await authApi.post<{ token: string }>("/login", {
       json: { email, password },
     });
     token = (await res.json()).token;
   } catch {
     try {
-      const res = await authApi.post<{ token: string }>("signup", {
+      const res = await authApi.post<{ token: string }>("/signup", {
         json: { email, password },
       });
       token = (await res.json()).token;
@@ -185,7 +185,7 @@ async function init() {
     required: true,
   });
 
-  const res = await projectApi.post<{ id: string }>("projects", {
+  const res = await projectApi.post<{ id: string }>("/projects", {
     json: { name: projectName },
   });
   const { id: projectId } = await res.json();
@@ -216,7 +216,7 @@ async function signup() {
 
   const { email, password } = await promptCredentials();
   try {
-    const res = await authApi.post<{ token: string }>("signup", {
+    const res = await authApi.post<{ token: string }>("/signup", {
       json: { email, password },
     });
     await saveToken((await res.json()).token, localConfig?.projectId);
@@ -234,7 +234,7 @@ async function login() {
 
   const { email, password } = await promptCredentials();
   try {
-    const res = await authApi.post<{ token: string }>("login", {
+    const res = await authApi.post<{ token: string }>("/login", {
       json: { email, password },
     });
     await saveToken((await res.json()).token, localConfig?.projectId);
@@ -248,7 +248,7 @@ async function createRun(projectId: string, gitinfo?: GitInfo) {
   debug("Creating run... projectId: %s gitinfo: %o", projectId, gitinfo);
   try {
     const res = await (
-      await api.post<{ id: string }>(`projects/${projectId}/runs`, {
+      await api.post<{ id: string }>(`/projects/${projectId}/runs`, {
         json: { gitinfo },
       })
     ).json();
@@ -286,7 +286,7 @@ async function postScreenshots(
     screenshots,
   };
 
-  await api.post(`projects/${projectId}/run/${runId}/precommit`, {
+  await api.post(`/projects/${projectId}/run/${runId}/precommit`, {
     json: manifest,
   });
 
@@ -295,7 +295,7 @@ async function postScreenshots(
     // form.append("screenshots", new Blob([buffer]), path.split("/").pop());
 
     try {
-      await api.post(`projects/${projectId}/run/${runId}/screenshots`, {
+      await api.post(`/projects/${projectId}/run/${runId}/screenshots`, {
         body: buffer,
         headers: {
           "content-type": "image/png",
@@ -316,7 +316,7 @@ async function createNewProject() {
       "It looks like this is your first time running the tool in this project. Give it a name to continue:",
   });
 
-  const res = await api.post<{ id: string }>("projects", {
+  const res = await api.post<{ id: string }>("/projects", {
     json: {
       name: projectName,
     },
@@ -366,14 +366,14 @@ Please review and update it as needed.
 
 async function markRunAsComplete(projectId: string, runId: string) {
   // TODO why double request here - can we just have one
-  await api.patch(`projects/${projectId}/run/${runId}`, {
+  await api.patch(`/projects/${projectId}/run/${runId}`, {
     json: {
       status: "unreviewed",
     },
   });
 
   // start comparison process
-  await api.post(`projects/${projectId}/run/${runId}/finalize`);
+  await api.post(`/projects/${projectId}/run/${runId}/finalize`);
 }
 
 export async function run(process: NodeJS.Process) {
