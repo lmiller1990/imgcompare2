@@ -17,12 +17,13 @@ const DEFAULT_SERVER_URL =
   process.env.SERVER_URL ?? "https://imgcompare.lachlan-miller.me/";
 
 function makeApi(baseUrl: string) {
-  debug("Making API clien with base URL: %s", baseUrl);
+  debug("Making API client with base URL: %s", baseUrl);
   return ky.extend({
     baseUrl,
     hooks: {
       beforeRequest: [
         async ({ request }) => {
+          debug("Request to URL %s", request.url, request);
           const token = await getStoredToken();
           if (token) {
             request.headers.set("Authorization", `Bearer ${token}`);
@@ -152,6 +153,7 @@ async function init() {
   let serverUrl = normalizeServerUrl(rawUrl);
   // we do not proxy using `api` locally
   const authApi = makeApi(serverUrl);
+  debug("Created auth API client with url %s", serverUrl);
 
   const { email, password } = await promptCredentials();
 
