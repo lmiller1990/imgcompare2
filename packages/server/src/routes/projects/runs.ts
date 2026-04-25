@@ -43,12 +43,9 @@ import { Readable } from "node:stream";
 import type { FastifyInstance } from "fastify";
 
 const queue = new Queue<SnapshotComparisonWorkerPayload>("diff");
+
 const logger = pino({
   level: "debug",
-  transport: {
-    target: "pino/file",
-    options: { destination: "./app.log" },
-  },
 });
 
 export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
@@ -135,7 +132,6 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
       preHandler: [fastify.verifyUser, fastify.verifyProjectAccess],
     },
     async (req, reply) => {
-      logger.info(`Received finalize request for run ${req.params.runId}`);
       await services.snapshotService.ensureDirExists();
       const fpath = req.headers["x-path"];
       const fname = req.headers["x-name"];

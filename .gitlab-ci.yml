@@ -11,14 +11,15 @@ build:
   image: docker:27
   services:
     - docker:27-dind
-  before_script:
-    - docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_TOKEN"
+  # before_script:
+  #   - docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_TOKEN"
   script:
-    - docker build -f packages/server/Dockerfile -t $IMAGE_SERVER:$CI_COMMIT_SHA -t $IMAGE_SERVER:latest .
-    - docker build -f packages/app/Dockerfile -t $IMAGE_FRONTEND:$CI_COMMIT_SHA -t $IMAGE_FRONTEND:latest .
-    - docker push $IMAGE_SERVER:$CI_COMMIT_SHA
-    - docker push $IMAGE_SERVER:latest
-    - docker push $IMAGE_FRONTEND:$CI_COMMIT_SHA
-    - docker push $IMAGE_FRONTEND:latest
+    - echo env
+    # - docker build -f packages/server/Dockerfile -t $IMAGE_SERVER:$CI_COMMIT_SHA -t $IMAGE_SERVER:latest .
+    # - docker build -f packages/app/Dockerfile -t $IMAGE_FRONTEND:$CI_COMMIT_SHA -t $IMAGE_FRONTEND:latest .
+    # - docker push $IMAGE_SERVER:$CI_COMMIT_SHA
+    # - docker push $IMAGE_SERVER:latest
+    # - docker push $IMAGE_FRONTEND:$CI_COMMIT_SHA
+    # - docker push $IMAGE_FRONTEND:latest
   only:
     - main
