@@ -244,6 +244,27 @@ export async function insertComparison(
   return record[0]!;
 }
 
+export async function insertSnapshot(
+  db: DB,
+  params: { runId: string; name: string; imageS3Path: string },
+): Promise<Snapshot> {
+  const inserted = await db
+    .insert(snapshots)
+    .values({
+      runId: params.runId,
+      name: params.name,
+      status: "pending",
+      imageS3Path: params.imageS3Path,
+    })
+    .returning();
+
+  if (!inserted[0]) {
+    throw new Error(`Inserted snapshot for run ${params.runId} but failed to return`);
+  }
+
+  return mapSnapshot(inserted[0]);
+}
+
 type SnapshotRow = typeof snapshots.$inferSelect;
 type RunRow = typeof runs.$inferSelect;
 type RunSourceRow = typeof runSources.$inferSelect;

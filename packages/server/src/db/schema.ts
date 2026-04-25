@@ -45,14 +45,17 @@ export const runs = pgTable(
       .references(() => projects.id, { onDelete: "cascade" }),
     status: text("status").notNull().default("pending"),
     runNumber: integer().notNull(),
+    snapshotsProcessed: integer().default(0),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
     completedAt: timestamp("completed_at", { withTimezone: true }),
   },
-  (t) => ({
-    projectRunUnique: unique().on(t.projectId, t.runNumber),
-  }),
+  (t) => [
+    {
+      projectRunUnique: unique().on(t.projectId, t.runNumber),
+    },
+  ],
 );
 
 export const runSources = pgTable("run_sources", {
@@ -99,6 +102,20 @@ export const runApprovals = pgTable("run_approvals", {
     .defaultNow()
     .notNull(),
 });
+
+// Idempotent guard
+export const runCompletions = pgTable(
+  "run_completions",
+  {
+    runId: text("run_id").notNull(),
+    jobId: text("job_id").notNull(),
+  },
+  (t) => [
+    {
+      pk: primaryKey({ columns: [t.runId, t.jobId] }),
+    },
+  ],
+);
 
 export const runManifests = pgTable("run_manifests", {
   id: uuid("id").primaryKey().defaultRandom(),

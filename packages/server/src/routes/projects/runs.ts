@@ -1,11 +1,5 @@
 import "dotenv/config";
-import {
-  snapshots,
-  runs,
-  projects,
-  runApprovals,
-  baselines,
-} from "../../db/schema.ts";
+import { runs, projects, runApprovals, baselines } from "../../db/schema.ts";
 import { and, eq } from "drizzle-orm";
 import { rootBucket, s3 } from "../../services/s3.ts";
 import {
@@ -17,6 +11,7 @@ import {
   insertRun,
   insertRunManifest,
   insertRunSource,
+  insertSnapshot,
   mappers,
   mapRun,
   patchRun,
@@ -181,10 +176,9 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
           file: Readable.from(req.body),
         });
 
-        await fastify.db.insert(snapshots).values({
+        await insertSnapshot(fastify.db, {
           runId: req.params.runId,
-          name: fpath,
-          status: "pending",
+          name: fname,
           imageS3Path,
         });
       } catch (e) {
