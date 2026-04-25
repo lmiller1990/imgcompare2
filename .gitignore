@@ -1,4 +1,5 @@
 node_modules/
+packages/server/app.log
 .terraform
 *.png
 packages/cli/bin/cli.js
