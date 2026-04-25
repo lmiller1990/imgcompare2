@@ -1,5 +1,4 @@
 import { and, eq, sql } from "drizzle-orm";
-import type { DB } from "../index.ts";
 import {
   baselines,
   comparisons,
@@ -22,6 +21,7 @@ import type {
 import { alias } from "drizzle-orm/pg-core";
 import pRetry from "p-retry";
 import type { CiMetadata, GitInfo } from "@packages/domain/src/domain.ts";
+import type { DB } from "./index.ts";
 
 type SnapshotTuple = [string, string];
 
@@ -228,6 +228,20 @@ export async function insertRunSource(
   return mapRunSource(inserted[0]);
 }
 
+export async function getTotalSnapshotCount(
+  db: DB,
+  runId: string,
+): Promise<number> {
+  const result = await db
+    .select({
+      count: sql<number>`jsonb_array_length(${runManifests.manifest}->'screenshots')`,
+    })
+    .from(runManifests)
+    .where(eq(runManifests.runId, runId));
+
+  return result[0]?.count ?? 0;
+}
+
 export async function insertRunManifest(
   db: DB,
   params: typeof runManifests.$inferInsert,
@@ -259,7 +273,9 @@ export async function insertSnapshot(
     .returning();
 
   if (!inserted[0]) {
-    throw new Error(`Inserted snapshot for run ${params.runId} but failed to return`);
+    throw new Error(
+      `Inserted snapshot for run ${params.runId} but failed to return`,
+    );
   }
 
   return mapSnapshot(inserted[0]);

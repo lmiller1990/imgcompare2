@@ -30,19 +30,14 @@ import type {
   GitInfo,
   RunManifest,
 } from "@packages/domain/src/domain.ts";
-import { Queue } from "bullmq";
-import {
-  getDb,
-  services,
-  type SnapshotComparisonWorkerPayload,
-} from "../../index.ts";
 import { DateTime } from "luxon";
 import pino from "pino";
 import { Readable } from "node:stream";
 import type { FastifyInstance } from "fastify";
 import { GitlabService } from "../../services/gitlab.ts";
-
-const queue = new Queue<SnapshotComparisonWorkerPayload>("diff");
+import { getDb } from "../../db/index.ts";
+import { services } from "../../services/index.ts";
+import { queue } from "../../worker.ts";
 
 const logger = pino({
   level: "debug",
