@@ -64,6 +64,10 @@ export const runSources = pgTable("run_sources", {
 
   // Git metadata
   branch: text("branch"),
+  // For all -> provier. Supported: "gitlab"
+  //  For gitlab -> CI_PROJECT_ID
+  // Null when run locally
+  ciMetadata: jsonb("ci_metadata"),
   commitHash: text("commit_hash"),
   authorEmail: text("author_email"),
   authorName: text("author_name"),

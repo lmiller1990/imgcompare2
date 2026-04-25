@@ -71,6 +71,20 @@
       "when": 1777030681787,
       "tag": "0009_early_mordo",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1777113162161,
+      "tag": "0010_keen_the_leader",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1777113218827,
+      "tag": "0011_quiet_ghost_rider",
+      "breakpoints": true
     }
   ]
 }

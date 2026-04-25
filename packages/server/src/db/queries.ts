@@ -21,7 +21,7 @@ import type {
 } from "../domain.ts";
 import { alias } from "drizzle-orm/pg-core";
 import pRetry from "p-retry";
-import type { GitInfo } from "@packages/domain/src/domain.ts";
+import type { CiMetadata, GitInfo } from "@packages/domain/src/domain.ts";
 
 type SnapshotTuple = [string, string];
 
@@ -207,6 +207,7 @@ export async function insertRunSource(
   db: DB,
   run: Run,
   gitinfo: GitInfo,
+  ciMetadata?: CiMetadata,
 ): Promise<RunSource> {
   const inserted = await db
     .insert(runSources)
@@ -216,6 +217,7 @@ export async function insertRunSource(
       commitHash: gitinfo.hash,
       authorEmail: gitinfo.authorEmail,
       authorName: gitinfo.authorName,
+      ciMetadata: ciMetadata,
     })
     .returning();
 

@@ -30,7 +30,11 @@ import {
   type RunWithSource,
   type Snapshot,
 } from "../../domain.ts";
-import type { GitInfo, RunManifest } from "@packages/domain/src/domain.ts";
+import type {
+  CiMetadata,
+  GitInfo,
+  RunManifest,
+} from "@packages/domain/src/domain.ts";
 import { Queue } from "bullmq";
 import {
   getDb,
@@ -41,6 +45,7 @@ import { DateTime } from "luxon";
 import pino from "pino";
 import { Readable } from "node:stream";
 import type { FastifyInstance } from "fastify";
+import { GitlabService } from "../../services/gitlab.ts";
 
 const queue = new Queue<SnapshotComparisonWorkerPayload>("diff");
 
@@ -49,13 +54,19 @@ const logger = pino({
 });
 
 export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
-  fastify.post<{ Params: { projectId: string }; Body: { gitinfo: GitInfo } }>(
+  fastify.post<{
+    Params: { projectId: string };
+    Body: { gitinfo?: GitInfo; ciMetadata?: CiMetadata };
+  }>(
     "/projects/:projectId/runs",
     {
       preHandler: [fastify.verifyUser, fastify.verifyProjectAccess],
     },
     async (req, reply) => {
-      logger.info({ gitinfo: req.body.gitinfo }, "got new run");
+      logger.info(
+        { gitinfo: req.body.gitinfo, ciMetadata: req.body.ciMetadata },
+        "got new run",
+      );
       const p = await fastify.db
         .select()
         .from(projects)
@@ -64,7 +75,23 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
       const run = await insertRun(fastify.db, req.params.projectId);
 
       if (req.body.gitinfo) {
-        await insertRunSource(fastify.db, run, req.body.gitinfo);
+        await insertRunSource(
+          fastify.db,
+          run,
+          req.body.gitinfo,
+          req.body.ciMetadata,
+        );
+
+        if (req.body.ciMetadata) {
+          if (req.body.ciMetadata.provider === "gitlab") {
+            const gl = new GitlabService(req.body.gitinfo, req.body.ciMetadata);
+            // no need to block on this
+            gl.setPipelineStatus("running", {
+              context: "imgcompare",
+              description: "Run pending",
+            });
+          }
+        }
       }
 
       reply.code(201).send(run);
@@ -109,6 +136,7 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
       preHandler: [fastify.verifyUser, fastify.verifyProjectAccess],
     },
     async (req, reply) => {
+      // const run = getRunById(fastify.db, req.params.runId);
       req.log.debug({ manifest: req.body }, `Got manifest`);
       await insertRunManifest(fastify.db, {
         runId: req.params.runId,

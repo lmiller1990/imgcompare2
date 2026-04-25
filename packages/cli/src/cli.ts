@@ -5,7 +5,12 @@ import debugLib from "debug";
 import { globby, type GitignoreOptions } from "globby";
 import { simpleGit } from "simple-git";
 import { input, password as passwordPrompt } from "@inquirer/prompts";
-import type { GitInfo, RunManifest } from "@packages/domain/src/domain.js";
+import type {
+  CiMetadata,
+  GitInfo,
+  GitLabCiMetadata,
+  RunManifest,
+} from "@packages/domain/src/domain.js";
 import fs from "fs";
 import path from "node:path";
 import ky from "ky";
@@ -35,6 +40,18 @@ function makeApi(baseUrl: string) {
 }
 
 let api = makeApi(DEFAULT_SERVER_URL);
+
+function maybeCollectCiMetadata(): CiMetadata | undefined {
+  if (process.env.GITLAB_CI) {
+    const metadata: GitLabCiMetadata = {
+      provider: "gitlab",
+      ci_project_id: process.env.GITLAB_CI,
+    };
+    return metadata;
+  }
+
+  return undefined;
+}
 
 export async function maybeGetGitInfo(): Promise<GitInfo | undefined> {
   try {
@@ -244,12 +261,16 @@ async function login() {
   }
 }
 
-async function createRun(projectId: string, gitinfo?: GitInfo) {
+async function createRun(
+  projectId: string,
+  gitinfo?: GitInfo,
+  ciMetadata?: CiMetadata,
+) {
   debug("Creating run... projectId: %s gitinfo: %o", projectId, gitinfo);
   try {
     const res = await (
       await api.post<{ id: string }>(`/projects/${projectId}/runs`, {
-        json: { gitinfo },
+        json: { gitinfo, ciMetadata },
       })
     ).json();
     return res;
@@ -422,7 +443,8 @@ set IMGCOMPARE_API_URL to point at your server (default: http://localhost)
   }
 
   const gitinfo = await maybeGetGitInfo();
-  const { id: runId } = await createRun(config.projectId, gitinfo);
+  const ciMetadata = maybeCollectCiMetadata();
+  const { id: runId } = await createRun(config.projectId, gitinfo, ciMetadata);
   debug("Created a run %s", runId);
 
   debug("Spawning child process with cmd: %s and args %o", cmd, args);
