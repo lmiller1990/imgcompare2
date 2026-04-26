@@ -17,6 +17,7 @@ describe("Postgres container (ESM)", () => {
   let fastify: Awaited<ReturnType<typeof createApp>>["fastify"];
 
   beforeAll(async () => {
+    process.env["MASTER_KEY"] = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
     container = await new PostgreSqlContainer("postgres:17-alpine").start();
     client = new Client({ connectionString: container.getConnectionUri() });
     await client.connect();

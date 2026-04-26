@@ -12,6 +12,7 @@ import {
 import { userRoutesPlugin } from "./routes/users.ts";
 import { projectRoutesPlugin } from "./routes/projects.ts";
 import { dbPlugin } from "./plugins/db.ts";
+import { secretsPlugin } from "./plugins/secrets.ts";
 import { projectRunsRoutesPlugin } from "./routes/projects/runs.ts";
 import type { DB } from "./index.ts";
 
@@ -26,6 +27,7 @@ export async function createApp(
 
   const fastify = Fastify({ logger: { level: "debug" } })
     .register(dbPlugin, { db })
+    .register(secretsPlugin)
     .register(fastifyCookie)
     .register(fastifyJwt, {
       secret: "secret123",
