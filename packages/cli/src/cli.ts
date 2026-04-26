@@ -13,9 +13,9 @@ import type {
 } from "@packages/domain/src/domain.js";
 import fs from "fs";
 import path from "node:path";
-import ky from "ky";
+import ky, { HTTPError } from "ky";
 import os from "os";
-import cac from "cac";
+import { Command } from "commander";
 
 const debug = debugLib("imgcompare:cli");
 const TOKEN_PATH = path.join(os.homedir(), ".imgtoken");
@@ -441,17 +441,133 @@ async function exec(args: string[]) {
   process.exit(exitCode);
 }
 
-const cli = cac("imgcompare");
+function handleCredentialError(e: unknown, action: string) {
+  if (e instanceof HTTPError) {
+    if (e.response.status === 401) {
+      console.error(
+        "Not authenticated. Run `imgcompare login` to log in first.",
+      );
+      return;
+    }
+    if (e.response.status === 409 && action === "generate") {
+      console.error(`A credential already exists for this project.
 
-cli.command("init", "Initialize a new project").action(init);
+  Run \`imgcompare credentials check\` to see the active client ID.
+  Run \`imgcompare credentials revoke\` to remove it, then generate a new one.`);
+      return;
+    }
+    if (e.response.status === 404) {
+      console.error(
+        `No active credential found. Run \`imgcompare credentials generate\` to create one.`,
+      );
+      return;
+    }
+  }
+  console.error(`Unexpected error: ${e}`);
+}
 
-cli.command("login", "Log in to your account").action(login);
+async function credentialsGenerate() {
+  const config = await loadConfig();
+  if (config.serverUrl) {
+    api = makeApi(config.serverUrl);
+  }
 
-cli.command("signup", "Create a new account").action(signup);
+  try {
+    const res = await api.post<{ clientId: string; clientSecret: string }>(
+      `/projects/${config.projectId}/credentials`,
+    );
+    const { clientId, clientSecret } = await res.json();
+    console.log(`Client credentials generated.
 
-cli
-  .command("exec [...args]", "Run a test command and capture screenshots")
+  Client ID:     ${clientId}
+  Client Secret: ${clientSecret}
+
+Store the secret securely — it will not be shown again.`);
+  } catch (e) {
+    handleCredentialError(e, "generate");
+    process.exit(1);
+  }
+}
+
+async function credentialsCheck() {
+  const config = await loadConfig();
+  if (config.serverUrl) {
+    api = makeApi(config.serverUrl);
+  }
+
+  try {
+    const res = await api.get<{ clientId: string }>(
+      `/projects/${config.projectId}/credentials`,
+    );
+    const { clientId } = await res.json();
+    console.log(`Active credential found.
+
+  Client ID: ${clientId}
+
+To remove it, run \`imgcompare credentials revoke\`.`);
+  } catch (e) {
+    handleCredentialError(e, "check");
+    process.exit(1);
+  }
+}
+
+async function credentialsRevoke() {
+  const config = await loadConfig();
+  if (config.serverUrl) {
+    api = makeApi(config.serverUrl);
+  }
+
+  try {
+    await api.delete(`/projects/${config.projectId}/credentials`);
+    console.log(
+      `Credential revoked. Run \`imgcompare credentials generate\` to create a new one.`,
+    );
+  } catch (e) {
+    handleCredentialError(e, "revoke");
+    process.exit(1);
+  }
+}
+
+const program = new Command("imgcompare");
+
+program.description("Visual regression testing CLI");
+
+program.command("init").description("Initialize a new project").action(init);
+
+program.command("login").description("Log in to your account").action(login);
+
+program.command("signup").description("Create a new account").action(signup);
+
+program
+  .command("exec")
+  .description("Run a test command and capture screenshots")
+  .argument("[args...]")
+  .allowUnknownOption()
   .action(exec);
 
-cli.help();
-cli.parse();
+const credentials = program
+  .command("credentials")
+  .description("Manage CI client credentials for this project");
+
+credentials
+  .command("generate")
+  .description(
+    "Generate a client ID and secret for CI authentication. The secret is shown once — store it in your CI secrets.",
+  )
+  .action(credentialsGenerate);
+
+credentials
+  .command("check")
+  .description(
+    "Check whether an active client credential exists for this project.",
+  )
+  .action(credentialsCheck);
+
+credentials
+  .command("revoke")
+  .description(
+    "Revoke the active client credential. Required before generating a new one.",
+  )
+  .action(credentialsRevoke);
+
+program.parse();
