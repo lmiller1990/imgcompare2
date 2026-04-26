@@ -105,14 +105,23 @@ let cachedServiceToken: string | undefined;
 async function getServiceToken(baseUrl: string): Promise<string | undefined> {
   const clientId = process.env.IMGCOMPARE_CLIENT_ID;
   const clientSecret = process.env.IMGCOMPARE_CLIENT_SECRET;
-  if (!clientId || !clientSecret) return undefined;
+  debug("getServiceToken: clientId=%s clientSecret=%s", clientId ? "set" : "unset", clientSecret ? "set" : "unset");
+  if (!clientId || !clientSecret) {
+    debug("getServiceToken: client credentials not set, skipping");
+    return undefined;
+  }
 
-  if (cachedServiceToken) return cachedServiceToken;
+  if (cachedServiceToken) {
+    debug("getServiceToken: returning cached token");
+    return cachedServiceToken;
+  }
 
+  debug("getServiceToken: requesting token from %s", baseUrl);
   const res = await ky.post(`${baseUrl}/api/auth/token`, {
     json: { clientId, clientSecret },
   });
   const { token } = await res.json<{ token: string }>();
+  debug("getServiceToken: token acquired");
   cachedServiceToken = token;
   return token;
 }

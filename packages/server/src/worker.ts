@@ -18,9 +18,13 @@ import { services } from "./services/index.ts";
 import { getDb } from "./db/index.ts";
 
 export const logger = pino({ level: "debug" });
-export const queue = new Queue<SnapshotComparisonWorkerPayload>("diff");
 
-const connection = new IORedis.default({ maxRetriesPerRequest: null });
+const connection = new IORedis.default({
+  host: process.env.REDIS_HOST ?? "127.0.0.1",
+  maxRetriesPerRequest: null,
+});
+
+export const queue = new Queue<SnapshotComparisonWorkerPayload>("diff", { connection });
 
 export interface SnapshotComparisonWorkerPayload {
   result: Result;

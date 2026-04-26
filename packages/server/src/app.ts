@@ -16,7 +16,7 @@ import { secretsPlugin } from "./plugins/secrets.ts";
 import { projectRunsRoutesPlugin } from "./routes/projects/runs.ts";
 import { projectCredentialsRoutesPlugin } from "./routes/projects/credentials.ts";
 import { authRoutesPlugin } from "./routes/auth.ts";
-import type { DB } from "./index.ts";
+import type { DB } from "./db/index.ts";
 
 interface CreateAppOptions {
   db: DB;
