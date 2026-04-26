@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { spawn } from "node:child_process";
+import { execa, ExecaError } from "execa";
 import debugLib from "debug";
 import { globby } from "globby";
 import { simpleGit } from "simple-git";
@@ -414,46 +414,40 @@ async function exec(args: string[]) {
 
   debug("Spawning child process with cmd: %s and args %o", cmd, cmdArgs);
 
-  const fullCmd = cmdArgs.length > 0 ? `${cmd} ${cmdArgs.join(" ")}` : cmd;
-  const child = spawn(fullCmd, {
-    stdio: "inherit",
-    shell: true,
-    env: {
-      ...process.env,
-      PATH: `${path.join(process.cwd(), "node_modules/.bin")}:${process.env.PATH}`,
-    },
-  });
+  let exitCode = 0;
+  try {
+    await execa(cmd, cmdArgs, {
+      stdio: "inherit",
+      env: {
+        ...process.env,
+        PATH: `${path.join(process.cwd(), "node_modules/.bin")}:${process.env.PATH}`,
+      },
+    });
+  } catch (e) {
+    if (e instanceof ExecaError) {
+      debug("Child exited with code %d", e.exitCode);
+      exitCode = e.exitCode ?? 1;
+    } else {
+      console.error("Unexpected error occurred. Aborting.");
+      debug("Child exited with error: %s", e);
+      process.exit(1);
+    }
+  }
 
-  child.on("exit", async (code, signal) => {
-    debug(`Finished with ${code} and signal: ${signal}`);
-    console.log("Run complete. Finalizing screenshots and comparisons...");
-
-    const files = await findAllScreenshots(process.cwd());
-    await postScreenshots(process.cwd(), config.projectId, runId, files);
-    await markRunAsComplete(config.projectId, runId);
-
-    process.exit(code);
-  });
-
-  child.on("error", (e) => {
-    console.error("Unexpected error occurred. Aborting.");
-    debug("Child exited with error: %s", e);
-  });
+  console.log("Run complete. Finalizing screenshots and comparisons...");
+  const files = await findAllScreenshots(process.cwd());
+  await postScreenshots(process.cwd(), config.projectId, runId, files);
+  await markRunAsComplete(config.projectId, runId);
+  process.exit(exitCode);
 }
 
 const cli = cac("imgcompare");
 
-cli
-  .command("init", "Initialize a new project")
-  .action(init);
+cli.command("init", "Initialize a new project").action(init);
 
-cli
-  .command("login", "Log in to your account")
-  .action(login);
+cli.command("login", "Log in to your account").action(login);
 
-cli
-  .command("signup", "Create a new account")
-  .action(signup);
+cli.command("signup", "Create a new account").action(signup);
 
 cli
   .command("exec [...args]", "Run a test command and capture screenshots")

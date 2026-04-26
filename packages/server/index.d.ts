@@ -1,7 +1,7 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
-import type { DB } from "./src/index.ts";
 import type { users } from "./src/db/schema.ts";
 import type { LocalSecretService } from "./src/services/encryption.ts";
+import type { DB } from "./src/db/index.ts";
 
 declare module "fastify" {
   interface FastifyRequest {

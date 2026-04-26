@@ -26,11 +26,11 @@ export const authRoutesPlugin = async (fastify: FastifyInstance) => {
   fastify.post<{ Body: { email: string; password: string } }>(
     "/login",
     async (req, reply) => {
-      const user = await fastify.db
+      const [user] = await fastify.db
         .select()
         .from(users)
         .where(eq(users.email, req.body.email))
-        .then((r) => r[0]);
+        .limit(1);
 
       if (!user) {
         return reply.code(401).send({ error: "Invalid credentials" });
