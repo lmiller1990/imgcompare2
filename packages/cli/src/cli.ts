@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-import { spawn } from "node:child_process";
+import { execa, ExecaError } from "execa";
 import debugLib from "debug";
-import { globby, type GitignoreOptions } from "globby";
+import { globby } from "globby";
 import { simpleGit } from "simple-git";
 import { input, password as passwordPrompt } from "@inquirer/prompts";
 import type {
@@ -15,6 +15,7 @@ import fs from "fs";
 import path from "node:path";
 import ky from "ky";
 import os from "os";
+import cac from "cac";
 
 const debug = debugLib("imgcompare:cli");
 const TOKEN_PATH = path.join(os.homedir(), ".imgtoken");
@@ -168,7 +169,6 @@ async function init() {
     default: "https://imgcompare.lachlan-miller.me/",
   });
   let serverUrl = normalizeServerUrl(rawUrl);
-  // we do not proxy using `api` locally
   const authApi = makeApi(serverUrl);
   debug("Created auth API client with url %s", serverUrl);
 
@@ -193,7 +193,6 @@ async function init() {
     }
   }
 
-  // save token temporarily so makeApi's hook can pick it up
   await saveToken(token!);
   const projectApi = makeApi(serverUrl);
 
@@ -222,7 +221,7 @@ Welcome! Your project has been initialized.
   Server:  ${serverUrl}
   Config:  ${configPath}
 
-Run your tests with: imgcompare <test-command>
+Run your tests with: imgcompare exec <test-command>
 `);
 }
 
@@ -313,20 +312,18 @@ async function postScreenshots(
 
   for (const ss of screenshots) {
     const buffer = await fs.promises.readFile(ss.fullPath);
-    // form.append("screenshots", new Blob([buffer]), path.split("/").pop());
 
     try {
       await api.post(`/projects/${projectId}/run/${runId}/screenshots`, {
         body: buffer,
         headers: {
           "content-type": "image/png",
-          "x-path": ss.fullPath, // send metadata via headers if needed
-          "x-name": ss.name, // send metadata via headers if needed
+          "x-path": ss.fullPath,
+          "x-name": ss.name,
         },
       });
     } catch (error) {
       debug("Error posting to server: %s", error);
-      //
     }
   }
 }
@@ -380,7 +377,6 @@ Please review and update it as needed.
       return defaultConfig;
     }
 
-    // Other errors should not be silently swallowed
     throw e;
   }
 }
@@ -393,45 +389,14 @@ async function markRunAsComplete(projectId: string, runId: string) {
     },
   });
 
-  // start comparison process
   await api.post(`/projects/${projectId}/run/${runId}/finalize`);
 }
 
-export async function run(process: NodeJS.Process) {
-  let cleanArgs = process.argv.slice(2);
-  cleanArgs = cleanArgs[0] === "--" ? cleanArgs.slice(1) : cleanArgs;
-
-  debug("Running with cwd %s and args %o", process.cwd(), cleanArgs);
-
-  const [cmd, ...args] = cleanArgs;
+async function exec(args: string[]) {
+  const [cmd, ...cmdArgs] = args;
   if (!cmd) {
-    throw new Error(
-      `You need to pass a command, eg pnpm exec <tool> playwright test`,
-    );
-  }
-
-  if (!cmd || cmd === "help" || cmd === "--help" || cmd === "-h") {
-    console.log(
-      `
-exec prefers <cwd>/node_modules/.bin (like pnpm exec)
-set IMGCOMPARE_API_URL to point at your server (default: http://localhost)
-`,
-    );
-    return;
-  }
-
-  if (cmd === "init") {
-    await init();
-    return;
-  }
-
-  if (cmd === "login") {
-    await login();
-    return;
-  }
-
-  if (cmd === "signup") {
-    await signup();
+    console.error("Usage: imgcompare exec <command> [args...]");
+    process.exit(1);
     return;
   }
 
@@ -447,28 +412,46 @@ set IMGCOMPARE_API_URL to point at your server (default: http://localhost)
   const { id: runId } = await createRun(config.projectId, gitinfo, ciMetadata);
   debug("Created a run %s", runId);
 
-  debug("Spawning child process with cmd: %s and args %o", cmd, args);
-  const child = spawn(cmd, args, {
-    stdio: "inherit",
-    shell: false,
-  });
+  debug("Spawning child process with cmd: %s and args %o", cmd, cmdArgs);
 
-  child.on("exit", async (code, signal) => {
-    debug(`Finished with ${code} and signal: ${signal}`);
-    console.log("Run complete. Finalizing screenshots and comparisons...");
+  let exitCode = 0;
+  try {
+    await execa(cmd, cmdArgs, {
+      stdio: "inherit",
+      env: {
+        ...process.env,
+        PATH: `${path.join(process.cwd(), "node_modules/.bin")}:${process.env.PATH}`,
+      },
+    });
+  } catch (e) {
+    if (e instanceof ExecaError) {
+      debug("Child exited with code %d", e.exitCode);
+      exitCode = e.exitCode ?? 1;
+    } else {
+      console.error("Unexpected error occurred. Aborting.");
+      debug("Child exited with error: %s", e);
+      process.exit(1);
+    }
+  }
 
-    const files = await findAllScreenshots(process.cwd());
-    await postScreenshots(process.cwd(), config.projectId, runId, files);
-    await markRunAsComplete(config.projectId, runId);
-
-    // forward this to ensure we fail with same status as uses process
-    process.exit(code);
-  });
-
-  child.on("error", (e) => {
-    console.error("Unexpected error occurred. Aborting.");
-    debug("Child exited with error: %s", e);
-  });
+  console.log("Run complete. Finalizing screenshots and comparisons...");
+  const files = await findAllScreenshots(process.cwd());
+  await postScreenshots(process.cwd(), config.projectId, runId, files);
+  await markRunAsComplete(config.projectId, runId);
+  process.exit(exitCode);
 }
 
-run(process);
+const cli = cac("imgcompare");
+
+cli.command("init", "Initialize a new project").action(init);
+
+cli.command("login", "Log in to your account").action(login);
+
+cli.command("signup", "Create a new account").action(signup);
+
+cli
+  .command("exec [...args]", "Run a test command and capture screenshots")
+  .action(exec);
+
+cli.help();
+cli.parse();
