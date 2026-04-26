@@ -3,6 +3,7 @@ import {
   baselines,
   comparisons,
   runApprovals,
+  runCompletions,
   runs,
   runSources,
   runManifests,
@@ -240,6 +241,30 @@ export async function getTotalSnapshotCount(
     .where(eq(runManifests.runId, runId));
 
   return result[0]?.count ?? 0;
+}
+
+export async function insertRunCompletion(
+  db: DB,
+  params: typeof runCompletions.$inferInsert,
+): Promise<boolean> {
+  const result = await db
+    .insert(runCompletions)
+    .values(params)
+    .onConflictDoNothing()
+    .returning();
+  return result.length > 0;
+}
+
+export async function incrementSnapshotsProcessed(
+  db: DB,
+  runId: string,
+): Promise<number> {
+  const result = await db
+    .update(runs)
+    .set({ snapshotsProcessed: sql`${runs.snapshotsProcessed} + 1` })
+    .where(eq(runs.id, runId))
+    .returning({ snapshotsProcessed: runs.snapshotsProcessed });
+  return result[0]?.snapshotsProcessed ?? 0;
 }
 
 export async function insertRunManifest(

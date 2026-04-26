@@ -4,7 +4,13 @@ import IORedis from "ioredis";
 import type { Result } from "./domain.ts";
 import { PNG } from "pngjs";
 import pixelmatch from "pixelmatch";
-import { insertComparison, patchRun } from "./db/queries.ts";
+import {
+  getTotalSnapshotCount,
+  incrementSnapshotsProcessed,
+  insertComparison,
+  insertRunCompletion,
+  patchRun,
+} from "./db/queries.ts";
 import pino from "pino";
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
@@ -83,19 +89,28 @@ const worker = new Worker<SnapshotComparisonWorkerPayload>(
         `Stored comparison for ${base.id} and ${incoming.id} in ${key} with id ${comparison.id}`,
       );
 
-      // HERE:
-      // INSERT INTO run_completions (run_id, job_id)
-      // VALUES ($1, $2)
-      // ON CONFLICT DO NOTHING;
+      const inserted = await insertRunCompletion(db, {
+        runId: job.data.runId,
+        jobId: job.id!,
+      });
+      if (!inserted) return;
 
-      // Then
-      // UPDATE runs
-      // SET snapshotsProcessed = snapshotsProcessed + 1
-      // WHERE id = $1
-      // RETURNING snapshotsProcessed, total;
-      // Now we need to grab total: getTotalSnapshotCount()
-      // IF total === snapshotsProcessed, we are "done"
-      // patchRun(db, job.data.runId, { snapshotsProcessed: })
+      const [processed, total] = await Promise.all([
+        incrementSnapshotsProcessed(db, job.data.runId),
+        getTotalSnapshotCount(db, job.data.runId),
+      ]);
+
+      if (processed >= total) {
+        logger.info(
+          `All snapshots processed (${processed}/${total}). Setting run[id=${job.data.runId}] to completed`,
+        );
+        await patchRun(db, job.data.runId, { status: "completed" });
+        return;
+      }
+
+      logger.info(
+        `Snapshots processed (${processed}/${total}). run[id=${job.data.runId}]`,
+      );
     } catch (e) {
       logger.error(`Error.. ${e}`);
     }
