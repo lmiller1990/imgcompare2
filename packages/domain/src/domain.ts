@@ -11,3 +11,10 @@ export interface RunManifest {
     fullPath: string;
   }>;
 }
+
+export interface GitLabCiMetadata {
+  provider: "gitlab";
+  ci_project_id: string;
+}
+
+export type CiMetadata = GitLabCiMetadata;

@@ -1,9 +1,9 @@
 import { and, eq, sql } from "drizzle-orm";
-import type { DB } from "../index.ts";
 import {
   baselines,
   comparisons,
   runApprovals,
+  runCompletions,
   runs,
   runSources,
   runManifests,
@@ -21,7 +21,8 @@ import type {
 } from "../domain.ts";
 import { alias } from "drizzle-orm/pg-core";
 import pRetry from "p-retry";
-import type { GitInfo } from "@packages/domain/src/domain.ts";
+import type { CiMetadata, GitInfo } from "@packages/domain/src/domain.ts";
+import type { DB } from "./index.ts";
 
 type SnapshotTuple = [string, string];
 
@@ -207,6 +208,7 @@ export async function insertRunSource(
   db: DB,
   run: Run,
   gitinfo: GitInfo,
+  ciMetadata?: CiMetadata,
 ): Promise<RunSource> {
   const inserted = await db
     .insert(runSources)
@@ -216,6 +218,7 @@ export async function insertRunSource(
       commitHash: gitinfo.hash,
       authorEmail: gitinfo.authorEmail,
       authorName: gitinfo.authorName,
+      ciMetadata: ciMetadata,
     })
     .returning();
 
@@ -224,6 +227,44 @@ export async function insertRunSource(
   }
 
   return mapRunSource(inserted[0]);
+}
+
+export async function getTotalSnapshotCount(
+  db: DB,
+  runId: string,
+): Promise<number> {
+  const result = await db
+    .select({
+      count: sql<number>`jsonb_array_length(${runManifests.manifest}->'screenshots')`,
+    })
+    .from(runManifests)
+    .where(eq(runManifests.runId, runId));
+
+  return result[0]?.count ?? 0;
+}
+
+export async function insertRunCompletion(
+  db: DB,
+  params: typeof runCompletions.$inferInsert,
+): Promise<boolean> {
+  const result = await db
+    .insert(runCompletions)
+    .values(params)
+    .onConflictDoNothing()
+    .returning();
+  return result.length > 0;
+}
+
+export async function incrementSnapshotsProcessed(
+  db: DB,
+  runId: string,
+): Promise<number> {
+  const result = await db
+    .update(runs)
+    .set({ snapshotsProcessed: sql`${runs.snapshotsProcessed} + 1` })
+    .where(eq(runs.id, runId))
+    .returning({ snapshotsProcessed: runs.snapshotsProcessed });
+  return result[0]?.snapshotsProcessed ?? 0;
 }
 
 export async function insertRunManifest(
@@ -240,6 +281,29 @@ export async function insertComparison(
 ) {
   const record = await db.insert(comparisons).values(params).returning();
   return record[0]!;
+}
+
+export async function insertSnapshot(
+  db: DB,
+  params: { runId: string; name: string; imageS3Path: string },
+): Promise<Snapshot> {
+  const inserted = await db
+    .insert(snapshots)
+    .values({
+      runId: params.runId,
+      name: params.name,
+      status: "pending",
+      imageS3Path: params.imageS3Path,
+    })
+    .returning();
+
+  if (!inserted[0]) {
+    throw new Error(
+      `Inserted snapshot for run ${params.runId} but failed to return`,
+    );
+  }
+
+  return mapSnapshot(inserted[0]);
 }
 
 type SnapshotRow = typeof snapshots.$inferSelect;

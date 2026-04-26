@@ -1,0 +1,1 @@
+ALTER TABLE "run_sources" ADD COLUMN "ci_metadata" jsonb NOT NULL;

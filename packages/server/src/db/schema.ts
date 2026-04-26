@@ -10,7 +10,14 @@ import {
   numeric,
   integer,
   jsonb,
+  customType,
 } from "drizzle-orm/pg-core";
+
+const bytea = customType<{ data: Buffer }>({
+  dataType() {
+    return "bytea";
+  },
+});
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -31,6 +38,7 @@ export const projects = pgTable("projects", {
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   s3BucketUuid: uuid("s3_bucket_uuid").defaultRandom().notNull(),
+  ciTokenCiphertext: bytea("ci_token_ciphertext"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -45,14 +53,17 @@ export const runs = pgTable(
       .references(() => projects.id, { onDelete: "cascade" }),
     status: text("status").notNull().default("pending"),
     runNumber: integer().notNull(),
+    snapshotsProcessed: integer().default(0),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
     completedAt: timestamp("completed_at", { withTimezone: true }),
   },
-  (t) => ({
-    projectRunUnique: unique().on(t.projectId, t.runNumber),
-  }),
+  (t) => [
+    {
+      projectRunUnique: unique().on(t.projectId, t.runNumber),
+    },
+  ],
 );
 
 export const runSources = pgTable("run_sources", {
@@ -64,6 +75,10 @@ export const runSources = pgTable("run_sources", {
 
   // Git metadata
   branch: text("branch"),
+  // For all -> provier. Supported: "gitlab"
+  //  For gitlab -> CI_PROJECT_ID
+  // Null when run locally
+  ciMetadata: jsonb("ci_metadata"),
   commitHash: text("commit_hash"),
   authorEmail: text("author_email"),
   authorName: text("author_name"),
@@ -95,6 +110,20 @@ export const runApprovals = pgTable("run_approvals", {
     .defaultNow()
     .notNull(),
 });
+
+// Idempotent guard
+export const runCompletions = pgTable(
+  "run_completions",
+  {
+    runId: text("run_id").notNull(),
+    jobId: text("job_id").notNull(),
+  },
+  (t) => [
+    {
+      pk: primaryKey({ columns: [t.runId, t.jobId] }),
+    },
+  ],
+);
 
 export const runManifests = pgTable("run_manifests", {
   id: uuid("id").primaryKey().defaultRandom(),

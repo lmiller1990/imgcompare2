@@ -71,6 +71,34 @@
       "when": 1777030681787,
       "tag": "0009_early_mordo",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1777113162161,
+      "tag": "0010_keen_the_leader",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1777113218827,
+      "tag": "0011_quiet_ghost_rider",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1777120719222,
+      "tag": "0012_charming_shockwave",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1777177885382,
+      "tag": "0013_round_blink",
+      "breakpoints": true
     }
   ]
 }
