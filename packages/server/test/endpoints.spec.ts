@@ -54,7 +54,7 @@ describe("Postgres container (ESM)", () => {
   it("401 when unauthenticated", async () => {
     const response = await fastify.inject({
       method: "POST",
-      url: "projects",
+      url: "/api/projects",
     });
 
     expect(response.statusCode).toBe(401);
@@ -90,7 +90,7 @@ describe("Postgres container (ESM)", () => {
 
     let response = await fastify.inject({
       method: "POST",
-      url: `projects/${p1[0]!.id}/runs`,
+      url: `/api/projects/${p1[0]!.id}/runs`,
       headers: {
         authorization: `Bearer ${jwt}`,
       },
@@ -100,7 +100,7 @@ describe("Postgres container (ESM)", () => {
 
     response = await fastify.inject({
       method: "POST",
-      url: `projects/${p2[0]!.id}/runs`,
+      url: `/api/projects/${p2[0]!.id}/runs`,
       headers: {
         authorization: `Bearer ${jwt}`,
       },

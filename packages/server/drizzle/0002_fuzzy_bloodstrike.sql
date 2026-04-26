@@ -1,2 +1,1 @@
-ALTER TABLE "comparisons" DROP CONSTRAINT "comparisons_baseline_snapshot_id_current_snapshot_id_pk";--> statement-breakpoint
 ALTER TABLE "comparisons" ADD CONSTRAINT "comparisons_baseline_snapshot_id_current_snapshot_id_unique" UNIQUE("baseline_snapshot_id","current_snapshot_id");

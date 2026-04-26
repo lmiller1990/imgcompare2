@@ -54,7 +54,7 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
     },
     async (req, reply) => {
       logger.info(
-        { gitinfo: req.body.gitinfo, ciMetadata: req.body.ciMetadata },
+        { gitinfo: req.body?.gitinfo, ciMetadata: req.body?.ciMetadata },
         "got new run",
       );
       const p = await fastify.db
@@ -64,7 +64,7 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
 
       const run = await insertRun(fastify.db, req.params.projectId);
 
-      if (req.body.gitinfo) {
+      if (req.body?.gitinfo) {
         await insertRunSource(
           fastify.db,
           run,
@@ -72,7 +72,7 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
           req.body.ciMetadata,
         );
 
-        if (req.body.ciMetadata) {
+        if (req.body?.ciMetadata) {
           if (req.body.ciMetadata.provider === "gitlab") {
             const gl = new GitlabService(req.body.gitinfo, req.body.ciMetadata);
             // no need to block on this
