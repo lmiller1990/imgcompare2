@@ -1,5 +1,5 @@
 stages:
-  - build
+  # - build
   - test
 
 variables:
@@ -7,23 +7,23 @@ variables:
   IMAGE_FRONTEND: lachlanmillerdev/imgcompare-frontend
   DOCKER_DRIVER: overlay2
 
-build:
-  stage: build
-  image: docker:27
-  services:
-    - docker:27-dind
-  # before_script:
-  #   - docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_TOKEN"
-  script:
-    - env
-    # - docker build -f packages/server/Dockerfile -t $IMAGE_SERVER:$CI_COMMIT_SHA -t $IMAGE_SERVER:latest .
-    # - docker build -f packages/app/Dockerfile -t $IMAGE_FRONTEND:$CI_COMMIT_SHA -t $IMAGE_FRONTEND:latest .
-    # - docker push $IMAGE_SERVER:$CI_COMMIT_SHA
-    # - docker push $IMAGE_SERVER:latest
-    # - docker push $IMAGE_FRONTEND:$CI_COMMIT_SHA
-    # - docker push $IMAGE_FRONTEND:latest
-  only:
-    - main
+# build:
+#   stage: build
+#   image: docker:27
+#   services:
+#     - docker:27-dind
+#   # before_script:
+#   #   - docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_TOKEN"
+#   script:
+#     - env
+#     # - docker build -f packages/server/Dockerfile -t $IMAGE_SERVER:$CI_COMMIT_SHA -t $IMAGE_SERVER:latest .
+#     # - docker build -f packages/app/Dockerfile -t $IMAGE_FRONTEND:$CI_COMMIT_SHA -t $IMAGE_FRONTEND:latest .
+#     # - docker push $IMAGE_SERVER:$CI_COMMIT_SHA
+#     # - docker push $IMAGE_SERVER:latest
+#     # - docker push $IMAGE_FRONTEND:$CI_COMMIT_SHA
+#     # - docker push $IMAGE_FRONTEND:latest
+#   only:
+#     - main
 
 test:e2e:
   stage: test
@@ -40,6 +40,9 @@ test:e2e:
     DATABASE_URL: postgresql://imgcompare:postgres@postgres:5432/imgcompare
     # Set MASTER_KEY as a masked CI/CD variable in GitLab (Settings → CI/CD → Variables)
     MASTER_KEY: $MASTER_KEY
+    # Unset client credentials so the CLI uses the token written by `init` instead
+    IMGCOMPARE_CLIENT_ID: ""
+    IMGCOMPARE_CLIENT_SECRET: ""
     # Store playwright browsers inside the project dir so GitLab cache works
     PLAYWRIGHT_BROWSERS_PATH: $CI_PROJECT_DIR/.playwright-browsers
   cache:
@@ -57,6 +60,9 @@ test:e2e:
     # Start server in background and wait for it to be healthy
     - (cd packages/server && pnpm run start) &
     - npx wait-on http://localhost:8070/health --timeout 30000
+    # Bootstrap project and write config.json into demo-app
+    - rm demo-app/config.json
+    - cd demo-app && node ../packages/cli/src/cli.ts init --server-url http://localhost:8070 --email test@example.com --password secret --project-name ci_testing123 && cd ..
   script:
     - cd demo-app && pnpm run test
   artifacts:
