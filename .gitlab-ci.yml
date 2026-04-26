@@ -31,6 +31,8 @@ test:e2e:
   services:
     - name: postgres:17-alpine
       alias: postgres
+    - name: redis:7-alpine
+      alias: redis
   variables:
     # Picked up automatically by the postgres service image
     POSTGRES_DB: imgcompare
