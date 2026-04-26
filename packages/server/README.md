@@ -1,6 +1,38 @@
 # Server
 
-## Setup
+## Database
+
+Update schema in `src/db/schema.ts`. Run `pnpm db:generate` to general the SQL, and pnpm db:migrate` to run them against a database.
+
+Access the database:
+
+```
+docker exec -it imgcompare-postgres psql -U imgcompare -d imgcompare
+```
+
+## Notes
+
+We run with `--strip-types`. So we cannot use propietary TypeScript features like:
+
+```ts
+class Foo {
+  // NO - `private readonly` for autoamtic property assignment does not work
+  constructor(private readonly bar: string) {}
+}
+```
+
+Instead:
+
+```ts
+class Foo {
+  #bar: string;
+  constructor(bar: string) {
+    this.#bar = bar;
+  }
+}
+```
+
+## Setup & Development
 
 Copy `.env.example` to `.env` and fill in the values:
 
@@ -63,3 +95,7 @@ Authorization: Bearer <jwt>
 ```
 
 Returns `{ "token": "glpat-xxxxxxxxxxxx" }`.
+
+## Client Credentials (CI Authentication)
+
+Projects support machine authentication via client credentials. A project owner generates a client ID and secret through the API — the secret is shown once and must be stored securely (e.g. in CI secrets). CI runners exchange the client ID and secret for a short-lived JWT, which is then used to authenticate API requests.

@@ -14,6 +14,8 @@ import { projectRoutesPlugin } from "./routes/projects.ts";
 import { dbPlugin } from "./plugins/db.ts";
 import { secretsPlugin } from "./plugins/secrets.ts";
 import { projectRunsRoutesPlugin } from "./routes/projects/runs.ts";
+import { projectCredentialsRoutesPlugin } from "./routes/projects/credentials.ts";
+import { authRoutesPlugin } from "./routes/auth.ts";
 import type { DB } from "./index.ts";
 
 interface CreateAppOptions {
@@ -41,7 +43,9 @@ export async function createApp(
     // routes
     .register(userRoutesPlugin, { prefix: "/api" })
     .register(projectRoutesPlugin, { prefix: "/api" })
-    .register(projectRunsRoutesPlugin, { prefix: "/api" });
+    .register(projectRunsRoutesPlugin, { prefix: "/api" })
+    .register(projectCredentialsRoutesPlugin, { prefix: "/api" })
+    .register(authRoutesPlugin, { prefix: "/api" });
 
   fastify.addContentTypeParser(
     "image/png",
