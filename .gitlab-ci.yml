@@ -39,7 +39,7 @@ test:e2e:
     # Used by the server and drizzle migrations
     DATABASE_URL: postgresql://imgcompare:postgres@postgres:5432/imgcompare
     # Set MASTER_KEY as a masked CI/CD variable in GitLab (Settings → CI/CD → Variables)
-    MASTER_KEY: $MASTER_KEY
+    MASTER_KEY: Agfp/fNC1GS+n9V5dKZwMmsnJ+MPu69RFOalNcu5gFA= # doesn't really matter
     # Unset client credentials so the CLI uses the token written by `init` instead
     IMGCOMPARE_CLIENT_ID: ""
     IMGCOMPARE_CLIENT_SECRET: ""
