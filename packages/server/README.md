@@ -1,6 +1,39 @@
 # Server
 
-## Setup
+## Database
+
+Update schema in `src/db/schema.ts`. Run `pnpm db:generate` to general the SQL, and pnpm db:migrate` to run them against a database.
+
+Access the database:
+
+```
+docker exec -it imgcompare-postgres psql -U imgcompare -d imgcompare
+```
+
+## Notes
+
+We run with `--strip-types`. So we cannot use propietary TypeScript features like:
+
+```ts
+class Foo {
+  // NO - `private readonly` for autoamtic property assignment does not work
+  constructor(private readonly bar: string) {} 
+}
+```
+
+Instead:
+
+```ts
+class Foo {
+  #bar: string
+  constructor(bar: string) {
+    this.#bar = bar
+  } 
+}
+
+```
+
+## Setup & Development
 
 Copy `.env.example` to `.env` and fill in the values:
 

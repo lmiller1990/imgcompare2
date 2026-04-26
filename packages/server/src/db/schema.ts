@@ -175,6 +175,19 @@ export const comparisons = pgTable(
   (t) => [unique().on(t.baselineSnapshotId, t.currentSnapshotId)],
 );
 
+export const clientCredentials = pgTable("client_credentials", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  clientId: text("client_id").notNull().unique(),
+  clientSecretHash: text("client_secret_hash").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+});
+
 export const projectsRelations = relations(projects, ({ many }) => ({
   baselines: many(baselines),
   runs: many(runs),
