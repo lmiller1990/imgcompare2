@@ -180,7 +180,14 @@ function normalizeServerUrl(url: string): string {
   return url.replace(/\/+$/, "");
 }
 
-async function init() {
+interface InitOptions {
+  serverUrl?: string;
+  email?: string;
+  password?: string;
+  projectName?: string;
+}
+
+async function init(options: InitOptions) {
   const configPath = path.join(process.cwd(), "config.json");
 
   if (fs.existsSync(configPath)) {
@@ -188,15 +195,21 @@ async function init() {
     return;
   }
 
-  const rawUrl = await input({
-    message: "Server URL",
-    default: "https://imgcompare.lachlan-miller.me/",
-  });
+  const rawUrl =
+    options.serverUrl ??
+    (await input({
+      message: "Server URL",
+      default: "https://imgcompare.lachlan-miller.me/",
+    }));
   let serverUrl = normalizeServerUrl(rawUrl);
   const authApi = makeApi(serverUrl);
   debug("Created auth API client with url %s", serverUrl);
 
-  const { email, password } = await promptCredentials();
+  const email =
+    options.email ??
+    (await input({ message: "Enter your email", required: true }));
+  const password =
+    options.password ?? (await passwordPrompt({ message: "Enter a password" }));
 
   let token: string | undefined;
 
@@ -220,10 +233,12 @@ async function init() {
   await saveToken(token!);
   const projectApi = makeApi(serverUrl);
 
-  const projectName = await input({
-    message: "Project name",
-    required: true,
-  });
+  const projectName =
+    options.projectName ??
+    (await input({
+      message: "Project name",
+      required: true,
+    }));
 
   const res = await projectApi.post<{ id: string }>("/projects", {
     json: { name: projectName },
@@ -556,7 +571,14 @@ const program = new Command("imgcompare");
 
 program.description("Visual regression testing CLI");
 
-program.command("init").description("Initialize a new project").action(init);
+program
+  .command("init")
+  .description("Initialize a new project")
+  .option("--server-url <url>", "Server URL")
+  .option("--email <email>", "Account email")
+  .option("--password <password>", "Account password")
+  .option("--project-name <name>", "Project name")
+  .action(init);
 
 program.command("login").description("Log in to your account").action(login);
 
