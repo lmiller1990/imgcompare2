@@ -43,9 +43,6 @@ test:e2e:
     # Set MASTER_KEY as a masked CI/CD variable in GitLab (Settings → CI/CD → Variables)
     MASTER_KEY: Agfp/fNC1GS+n9V5dKZwMmsnJ+MPu69RFOalNcu5gFA= # doesn't really matter
     REDIS_HOST: redis
-    # Unset client credentials so the CLI uses the token written by `init` instead
-    IMGCOMPARE_CLIENT_ID: ""
-    IMGCOMPARE_CLIENT_SECRET: ""
     # Store playwright browsers inside the project dir so GitLab cache works
     PLAYWRIGHT_BROWSERS_PATH: $CI_PROJECT_DIR/.playwright-browsers
   cache:
@@ -53,6 +50,8 @@ test:e2e:
     paths:
       - .playwright-browsers/
   before_script:
+    # Ensure client credentials from GitLab project variables don't interfere
+    - unset IMGCOMPARE_CLIENT_ID IMGCOMPARE_CLIENT_SECRET
     - corepack enable
     - pnpm install
     # Install Chromium browser binaries (cached between runs)
