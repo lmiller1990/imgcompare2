@@ -1,6 +1,5 @@
 import { projects, users } from "../db/schema.ts";
 import { eq } from "drizzle-orm";
-import { LocalSecretProvider } from "../lib/encryption.ts";
 import type { FastifyInstance } from "fastify";
 
 export const projectRoutesPlugin = async (fastify: FastifyInstance) => {
@@ -36,8 +35,10 @@ export const projectRoutesPlugin = async (fastify: FastifyInstance) => {
     "/projects/:id/token",
     { preHandler: [fastify.verifyJwt] },
     async (req, reply) => {
-      const provider = LocalSecretProvider.fromEnv();
-      const ciphertext = await provider.encrypt(req.body.token, req.params.id);
+      const ciphertext = await fastify.secrets.encrypt(
+        req.body.token,
+        req.params.id,
+      );
 
       await fastify.db
         .update(projects)
@@ -62,8 +63,7 @@ export const projectRoutesPlugin = async (fastify: FastifyInstance) => {
         return reply.code(404).send({ error: "Not found" });
       }
 
-      const provider = LocalSecretProvider.fromEnv();
-      const token = await provider.decrypt(
+      const token = await fastify.secrets.decrypt(
         row.ciTokenCiphertext,
         req.params.id,
       );

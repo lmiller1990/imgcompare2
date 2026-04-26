@@ -32,7 +32,7 @@ function aesDecrypt(key: Buffer, blob: Buffer, aad?: Buffer): Buffer {
  * The context string (project ID) is bound as AAD on the token encryption,
  * so a ciphertext cannot be replayed against a different project row.
  */
-export class LocalSecretProvider {
+export class LocalSecretService {
   #masterKey: Buffer;
 
   constructor(masterKey: Buffer) {
@@ -42,10 +42,10 @@ export class LocalSecretProvider {
     this.#masterKey = masterKey;
   }
 
-  static fromEnv(): LocalSecretProvider {
+  static fromEnv(): LocalSecretService {
     const raw = process.env["MASTER_KEY"];
     if (!raw) throw new Error("MASTER_KEY env var is required");
-    return new LocalSecretProvider(Buffer.from(raw, "base64"));
+    return new LocalSecretService(Buffer.from(raw, "base64"));
   }
 
   async encrypt(plaintext: string, context: string): Promise<Buffer> {

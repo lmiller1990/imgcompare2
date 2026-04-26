@@ -1,6 +1,4 @@
-import { and, eq } from "drizzle-orm";
-import type { DB } from "../index.ts";
-import { baselines, runs, snapshots } from "./schema.ts";
+import type { DB } from "./index.ts";
 
 export async function getProjectsForUser(db: DB, userId: string) {
   const q = await db.query.projects.findMany({
