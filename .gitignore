@@ -4,4 +4,4 @@ packages/server/app.log
 *.png
 status_update.sh
 packages/cli/bin/cli.js
-.env
+packages/server/.env
