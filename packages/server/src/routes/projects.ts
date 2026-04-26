@@ -1,6 +1,6 @@
 import { projects, users } from "../db/schema.ts";
 import { eq } from "drizzle-orm";
-import { getProjectWithRunsAndBaseline } from "../db/queries.ts";
+import { LocalSecretProvider } from "../lib/encryption.ts";
 import type { FastifyInstance } from "fastify";
 
 export const projectRoutesPlugin = async (fastify: FastifyInstance) => {
@@ -32,22 +32,42 @@ export const projectRoutesPlugin = async (fastify: FastifyInstance) => {
     },
   );
 
-  // fastify.get<{ Params: { projectId: string } }>(
-  //   "/projects/:projectId",
-  //   {
-  //     preHandler: [fastify.verifyJwt],
-  //   },
-  //   async (req, reply) => {
-  //     const project = await getProjectWithRunsAndBaseline(
-  //       fastify.db,
-  //       req.params.projectId,
-  //     );
+  fastify.post<{ Params: { id: string }; Body: { token: string } }>(
+    "/projects/:id/token",
+    { preHandler: [fastify.verifyJwt] },
+    async (req, reply) => {
+      const provider = LocalSecretProvider.fromEnv();
+      const ciphertext = await provider.encrypt(req.body.token, req.params.id);
 
-  //     if (!project) {
-  //       return reply.code(404).send({ error: "Not found" });
-  //     }
+      await fastify.db
+        .update(projects)
+        .set({ ciTokenCiphertext: ciphertext })
+        .where(eq(projects.id, req.params.id));
 
-  //     reply.send(project);
-  //   },
-  // );
+      reply.code(204).send();
+    },
+  );
+
+  fastify.get<{ Params: { id: string } }>(
+    "/projects/:id/token",
+    { preHandler: [fastify.verifyJwt] },
+    async (req, reply) => {
+      const rows = await fastify.db
+        .select({ ciTokenCiphertext: projects.ciTokenCiphertext })
+        .from(projects)
+        .where(eq(projects.id, req.params.id));
+
+      const row = rows[0];
+      if (!row || !row.ciTokenCiphertext) {
+        return reply.code(404).send({ error: "Not found" });
+      }
+
+      const provider = LocalSecretProvider.fromEnv();
+      const token = await provider.decrypt(
+        row.ciTokenCiphertext,
+        req.params.id,
+      );
+      reply.send({ token });
+    },
+  );
 };

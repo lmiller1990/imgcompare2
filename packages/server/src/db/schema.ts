@@ -10,7 +10,14 @@ import {
   numeric,
   integer,
   jsonb,
+  customType,
 } from "drizzle-orm/pg-core";
+
+const bytea = customType<{ data: Buffer }>({
+  dataType() {
+    return "bytea";
+  },
+});
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -31,6 +38,7 @@ export const projects = pgTable("projects", {
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   s3BucketUuid: uuid("s3_bucket_uuid").defaultRandom().notNull(),
+  ciTokenCiphertext: bytea("ci_token_ciphertext"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
