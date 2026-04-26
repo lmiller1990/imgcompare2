@@ -24,13 +24,14 @@ const DEFAULT_SERVER_URL =
 
 function makeApi(baseUrl: string) {
   debug("Making API client with base URL: %s", baseUrl);
+  const normalizedBase = baseUrl.replace(/\/+$/, "");
   return ky.extend({
-    prefix: baseUrl.replace(/\/+$/, "") + "/api",
+    prefix: normalizedBase + "/api",
     hooks: {
       beforeRequest: [
         async ({ request }) => {
           debug("Request to URL %s", request.url, request);
-          const token = await getStoredToken();
+          const token = await getAuthToken(normalizedBase);
           if (token) {
             request.headers.set("Authorization", `Bearer ${token}`);
           }
@@ -97,6 +98,29 @@ async function getStoredToken() {
   } catch {
     //
   }
+}
+
+let cachedServiceToken: string | undefined;
+
+async function getServiceToken(baseUrl: string): Promise<string | undefined> {
+  const clientId = process.env.IMGCOMPARE_CLIENT_ID;
+  const clientSecret = process.env.IMGCOMPARE_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return undefined;
+
+  if (cachedServiceToken) return cachedServiceToken;
+
+  const res = await ky.post(`${baseUrl}/api/auth/token`, {
+    json: { clientId, clientSecret },
+  });
+  const { token } = await res.json<{ token: string }>();
+  cachedServiceToken = token;
+  return token;
+}
+
+async function getAuthToken(baseUrl: string): Promise<string | undefined> {
+  const serviceToken = await getServiceToken(baseUrl);
+  if (serviceToken) return serviceToken;
+  return getStoredToken();
 }
 
 async function saveToken(token: string, projectId?: string) {
