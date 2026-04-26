@@ -112,8 +112,10 @@ describe("client credentials", () => {
       url: `/api/projects/${projectId}/credentials`,
       headers: { authorization: `Bearer ${jwt}` },
     });
-    const { clientId: newClientId, clientSecret } =
-      createRes.json<{ clientId: string; clientSecret: string }>();
+    const { clientId: newClientId, clientSecret } = createRes.json<{
+      clientId: string;
+      clientSecret: string;
+    }>();
 
     const tokenRes = await fastify.inject({
       method: "POST",

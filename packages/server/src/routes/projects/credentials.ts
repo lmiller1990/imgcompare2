@@ -30,7 +30,9 @@ export const projectCredentialsRoutesPlugin = async (
     "/projects/:projectId/credentials",
     { preHandler: [fastify.verifyJwt, fastify.verifyProjectAccess] },
     async (req, reply) => {
-      const credential = await credentialService.getActive(req.params.projectId);
+      const credential = await credentialService.getActive(
+        req.params.projectId,
+      );
       if (!credential) {
         return reply.code(404).send({ error: "Not found" });
       }
