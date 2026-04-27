@@ -460,7 +460,10 @@ async function exec(args: string[]) {
   }
 
   const gitinfo = await maybeGetGitInfo();
-  const ciMetadata = maybeCollectCiMetadata();
+  // I want to run on CI to test the local experience. So we "pretend" not to be CI
+  const ciMetadata = process.env.PRETEND_NOT_CI
+    ? undefined
+    : maybeCollectCiMetadata();
   const { id: runId } = await createRun(config.projectId, gitinfo, ciMetadata);
   debug("Created a run %s", runId);
 

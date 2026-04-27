@@ -25,7 +25,7 @@ variables:
 #   only:
 #     - main
 
-test:e2e:
+test:e2e:local:
   stage: test
   image: node:24
   services:
@@ -66,7 +66,7 @@ test:e2e:
     - rm demo-app/config.json
     - cd demo-app && node ../packages/cli/src/cli.ts init --server-url http://localhost:8070 --email test@example.com --password secret --project-name ci_testing123 && cd ..
   script:
-    - cd demo-app && pnpm run test
+    - cd demo-app && PRETEND_NOT_CI=1 pnpm run test
   artifacts:
     when: always
     paths:

@@ -61,6 +61,7 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
       const run = await insertRun(fastify.db, req.params.projectId);
 
       if (req.body?.gitinfo) {
+        req.log.info({ gitinfo: req.body.gitinfo }, "New run with gitinfo");
         await insertRunSource(
           fastify.db,
           run,
@@ -69,13 +70,18 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
         );
 
         if (req.body?.ciMetadata) {
+          req.log.info({ ciMetadata: req.body.ciMetadata }, "Got ciMetadata");
           const { provider } = req.body.ciMetadata;
           const tokenRow = await getCiToken(
             fastify.db,
             req.params.projectId,
             provider,
           );
+          // NEXT STEP
+          // ALLOW RUNNING W/O TOKEN
+          // USEFUL FOR RUNNING LOCALLY and TESTING!
           if (!tokenRow) {
+            req.log.error(`No ${provider} token configured for this project`);
             return reply.code(400).send({
               error: `No ${provider} token configured for this project`,
             });
