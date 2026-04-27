@@ -54,7 +54,10 @@ export const projectCredentialsRoutesPlugin = async (
     },
   );
 
-  fastify.post<{ Params: { projectId: string }; Body: { token: string } }>(
+  fastify.post<{
+    Params: { projectId: string };
+    Body: { provider: string; token: string };
+  }>(
     "/projects/:projectId/token",
     { preHandler: [fastify.verifyJwt, fastify.verifyProjectAccess] },
     async (req, reply) => {
@@ -65,7 +68,10 @@ export const projectCredentialsRoutesPlugin = async (
 
       await fastify.db
         .update(projects)
-        .set({ ciTokenCiphertext: ciphertext })
+        .set({
+          ciTokenCiphertext: ciphertext,
+          ciTokenProvider: req.body.provider,
+        })
         .where(eq(projects.id, req.params.projectId));
 
       reply.code(204).send();
@@ -73,6 +79,32 @@ export const projectCredentialsRoutesPlugin = async (
   );
 
   fastify.get<{ Params: { projectId: string } }>(
+    "/projects/:projectId/token",
+    { preHandler: [fastify.verifyJwt, fastify.verifyProjectAccess] },
+    async (req, reply) => {
+      const rows = await fastify.db
+        .select({
+          ciTokenCiphertext: projects.ciTokenCiphertext,
+          ciTokenProvider: projects.ciTokenProvider,
+        })
+        .from(projects)
+        .where(eq(projects.id, req.params.projectId));
+
+      const row = rows[0];
+      if (!row || !row.ciTokenCiphertext) {
+        return reply.code(404).send({ error: "Not found" });
+      }
+
+      const token = await fastify.secrets.decrypt(
+        row.ciTokenCiphertext,
+        req.params.projectId,
+      );
+      const hint = token.slice(0, 6) + "..." + token.slice(-4);
+      reply.send({ hint, provider: row.ciTokenProvider });
+    },
+  );
+
+  fastify.delete<{ Params: { projectId: string } }>(
     "/projects/:projectId/token",
     { preHandler: [fastify.verifyJwt, fastify.verifyProjectAccess] },
     async (req, reply) => {
@@ -86,11 +118,12 @@ export const projectCredentialsRoutesPlugin = async (
         return reply.code(404).send({ error: "Not found" });
       }
 
-      const token = await fastify.secrets.decrypt(
-        row.ciTokenCiphertext,
-        req.params.projectId,
-      );
-      reply.send({ token });
+      await fastify.db
+        .update(projects)
+        .set({ ciTokenCiphertext: null, ciTokenProvider: null })
+        .where(eq(projects.id, req.params.projectId));
+
+      reply.code(204).send();
     },
   );
 };

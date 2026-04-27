@@ -39,6 +39,7 @@ export const projects = pgTable("projects", {
     .references(() => users.id, { onDelete: "cascade" }),
   s3BucketUuid: uuid("s3_bucket_uuid").defaultRandom().notNull(),
   ciTokenCiphertext: bytea("ci_token_ciphertext"),
+  ciTokenProvider: text("ci_token_provider"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
