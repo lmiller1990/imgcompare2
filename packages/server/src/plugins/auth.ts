@@ -14,11 +14,19 @@ export const verifyProjectAccessPlugin = fp(async (fastify) => {
       request: FastifyRequest<{ Params: { projectId: string } }>,
       reply: FastifyReply,
     ) {
-      const { email } = request.user as { email: string };
+      const payload = request.user;
+
+      if ("type" in payload && payload.type === "service") {
+        if (payload.projectId !== request.params.projectId) {
+          return reply.code(401).send({ error: "Unauthorized" });
+        }
+        return;
+      }
+
       const q = await fastify.db
         .select()
         .from(users)
-        .where(eq(users.email, email));
+        .where(eq(users.email, payload.email));
       const user = q?.[0];
       if (!user) {
         return reply.code(401).send({ error: "Unauthorized" });
@@ -47,12 +55,15 @@ export const verifyUserPlugin = fp(async (fastify) => {
     "verifyUser",
     async function (request: FastifyRequest, reply: FastifyReply) {
       await fastify.verifyJwt(request, reply);
-      const { email } = request.user as { email: string };
+      const payload = request.user;
+      if (!("email" in payload)) {
+        return reply.code(401).send({ error: "Unauthorized" });
+      }
 
       const [user] = await fastify.db
         .select()
         .from(users)
-        .where(eq(users.email, email))
+        .where(eq(users.email, payload.email))
         .limit(1);
 
       if (!user) {
@@ -69,6 +80,8 @@ export const verifyJwtPlugin = fp(async (fastify) => {
     "verifyJwt",
     async function (request: FastifyRequest, reply: FastifyReply) {
       await request.jwtVerify();
+      // console.log(">>>>>>>>>>jwt", jwt);
+      // return jwt;
     },
   );
 });

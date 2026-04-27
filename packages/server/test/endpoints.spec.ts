@@ -109,4 +109,90 @@ describe("Postgres container (ESM)", () => {
 
     expect(response.statusCode).toBe(401);
   });
+
+  it("service token can access its own project", async () => {
+    const [user] = await db
+      .insert(schema.users)
+      .values({ email: "ci@example.com", password: "hashed" })
+      .returning();
+
+    const [project] = await db
+      .insert(schema.projects)
+      .values({ ownerUserId: user!.id, name: "ci project" })
+      .returning();
+
+    const ownerJwt = fastify.jwt.sign({ email: "ci@example.com" });
+
+    const createRes = await fastify.inject({
+      method: "POST",
+      url: `/api/projects/${project!.id}/credentials`,
+      headers: { authorization: `Bearer ${ownerJwt}` },
+    });
+    const { clientId, clientSecret } = createRes.json<{
+      clientId: string;
+      clientSecret: string;
+    }>();
+
+    const tokenRes = await fastify.inject({
+      method: "POST",
+      url: "/api/auth/token",
+      payload: { clientId, clientSecret },
+    });
+    const { token: serviceToken } = tokenRes.json<{ token: string }>();
+
+    const response = await fastify.inject({
+      method: "POST",
+      url: `/api/projects/${project!.id}/runs`,
+      headers: { authorization: `Bearer ${serviceToken}` },
+    });
+
+    expect(response.statusCode).toBe(201);
+  });
+
+  it("service token cannot access a different project", async () => {
+    const [userA] = await db
+      .insert(schema.users)
+      .values({ email: "ci-a@example.com", password: "hashed" })
+      .returning();
+    const [userB] = await db
+      .insert(schema.users)
+      .values({ email: "ci-b@example.com", password: "hashed" })
+      .returning();
+
+    const [projectA] = await db
+      .insert(schema.projects)
+      .values({ ownerUserId: userA!.id, name: "project a" })
+      .returning();
+    const [projectB] = await db
+      .insert(schema.projects)
+      .values({ ownerUserId: userB!.id, name: "project b" })
+      .returning();
+
+    const ownerJwt = fastify.jwt.sign({ email: "ci-a@example.com" });
+
+    const createRes = await fastify.inject({
+      method: "POST",
+      url: `/api/projects/${projectA!.id}/credentials`,
+      headers: { authorization: `Bearer ${ownerJwt}` },
+    });
+    const { clientId, clientSecret } = createRes.json<{
+      clientId: string;
+      clientSecret: string;
+    }>();
+
+    const tokenRes = await fastify.inject({
+      method: "POST",
+      url: "/api/auth/token",
+      payload: { clientId, clientSecret },
+    });
+    const { token: serviceToken } = tokenRes.json<{ token: string }>();
+
+    const response = await fastify.inject({
+      method: "POST",
+      url: `/api/projects/${projectB!.id}/runs`,
+      headers: { authorization: `Bearer ${serviceToken}` },
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
 });

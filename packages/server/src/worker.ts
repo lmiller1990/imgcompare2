@@ -24,7 +24,9 @@ const connection = new IORedis.default({
   maxRetriesPerRequest: null,
 });
 
-export const queue = new Queue<SnapshotComparisonWorkerPayload>("diff", { connection });
+export const queue = new Queue<SnapshotComparisonWorkerPayload>("diff", {
+  connection,
+});
 
 export interface SnapshotComparisonWorkerPayload {
   result: Result;
