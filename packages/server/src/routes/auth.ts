@@ -17,7 +17,7 @@ export const authRoutesPlugin = async (fastify: FastifyInstance) => {
       await fastify.db
         .insert(users)
         .values({ email: req.body.email, password: hash });
-      const token = fastify.jwt.sign({ email: req.body.email });
+      const token = fastify.jwt.sign({ type: "user", email: req.body.email });
       reply.setCookie("token", token, cookieOpts);
       reply.send({ token });
     },
@@ -41,7 +41,7 @@ export const authRoutesPlugin = async (fastify: FastifyInstance) => {
         return reply.code(401).send({ error: "Invalid credentials" });
       }
 
-      const token = fastify.jwt.sign({ email: req.body.email });
+      const token = fastify.jwt.sign({ type: "user", email: req.body.email });
       reply.setCookie("token", token, cookieOpts);
       reply.send({ token });
     },

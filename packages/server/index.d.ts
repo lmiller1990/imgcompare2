@@ -5,7 +5,9 @@ import type { DB } from "./src/db/index.ts";
 
 declare module "@fastify/jwt" {
   interface FastifyJWT {
-    user: { email: string } | { projectId: string; type: "service" };
+    user:
+      | { type: "user"; email: string }
+      | { type: "service"; projectId: string };
   }
 }
 
