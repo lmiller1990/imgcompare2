@@ -113,7 +113,7 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
   }>(
     "/projects/:projectId/run/:runId",
     {
-      preHandler: [fastify.verifyUser],
+      preHandler: [fastify.verifyJwt, fastify.verifyProjectAccess],
     },
     async (req, reply) => {
       const { id, projectId, ...rest } = req.body;
@@ -271,7 +271,7 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
   }>(
     "/projects/:projectId/runs",
     {
-      preHandler: [fastify.verifyUser],
+      preHandler: [fastify.verifyJwt, fastify.verifyProjectAccess],
     },
     async (req, reply) => {
       const project = await getProjectWithRunsAndBaseline(
