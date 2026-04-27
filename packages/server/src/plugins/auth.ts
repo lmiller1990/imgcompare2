@@ -55,12 +55,15 @@ export const verifyUserPlugin = fp(async (fastify) => {
     "verifyUser",
     async function (request: FastifyRequest, reply: FastifyReply) {
       await fastify.verifyJwt(request, reply);
-      const { email } = request.user as { email: string };
+      const payload = request.user;
+      if (!("email" in payload)) {
+        return reply.code(401).send({ error: "Unauthorized" });
+      }
 
       const [user] = await fastify.db
         .select()
         .from(users)
-        .where(eq(users.email, email))
+        .where(eq(users.email, payload.email))
         .limit(1);
 
       if (!user) {

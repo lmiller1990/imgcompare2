@@ -105,7 +105,11 @@ let cachedServiceToken: string | undefined;
 async function getServiceToken(baseUrl: string): Promise<string | undefined> {
   const clientId = process.env.IMGCOMPARE_CLIENT_ID;
   const clientSecret = process.env.IMGCOMPARE_CLIENT_SECRET;
-  debug("getServiceToken: clientId=%s clientSecret=%s", clientId ? "set" : "unset", clientSecret ? "set" : "unset");
+  debug(
+    "getServiceToken: clientId=%s clientSecret=%s",
+    clientId ? "set" : "unset",
+    clientSecret ? "set" : "unset",
+  );
   if (!clientId || !clientSecret) {
     debug("getServiceToken: client credentials not set, skipping");
     return undefined;
