@@ -1,6 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 import {
   baselines,
+  ciTokens,
   comparisons,
   runApprovals,
   runCompletions,
@@ -385,3 +386,17 @@ export type RunsForProject = Awaited<ReturnType<typeof getRunsForProject>>;
 export type ProjectWithRunsAndBaseline = Awaited<
   ReturnType<typeof getProjectWithRunsAndBaseline>
 >;
+
+export async function getCiToken(
+  db: DB,
+  projectId: string,
+  provider: string,
+): Promise<{ ciphertext: Buffer } | undefined> {
+  const rows = await db
+    .select({ ciphertext: ciTokens.ciphertext })
+    .from(ciTokens)
+    .where(
+      and(eq(ciTokens.projectId, projectId), eq(ciTokens.provider, provider)),
+    );
+  return rows[0];
+}

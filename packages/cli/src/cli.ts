@@ -4,7 +4,7 @@ import { execa, ExecaError } from "execa";
 import debugLib from "debug";
 import { globby } from "globby";
 import { simpleGit } from "simple-git";
-import { input, password as passwordPrompt } from "@inquirer/prompts";
+import { input, password as passwordPrompt, select } from "@inquirer/prompts";
 import type {
   CiMetadata,
   GitInfo,
@@ -580,6 +580,144 @@ async function credentialsRevoke() {
   }
 }
 
+const SUPPORTED_PROVIDERS = [{ value: "gitlab", name: "GitLab" }] as const;
+type Provider = (typeof SUPPORTED_PROVIDERS)[number]["value"];
+
+function handleTokenError(e: unknown, action: string) {
+  if (e instanceof HTTPError) {
+    if (e.response.status === 401) {
+      console.error(
+        "Not authenticated. Run `imgcompare login` to log in first.",
+      );
+      return;
+    }
+    if (e.response.status === 404 && action !== "save") {
+      console.error("No token saved. Run `imgcompare token save` to add one.");
+      return;
+    }
+  }
+  console.error(`Unexpected error: ${e}`);
+}
+
+interface TokenSaveOptions {
+  provider?: Provider;
+  force?: boolean;
+}
+
+async function tokenSave(options: TokenSaveOptions) {
+  const config = await loadConfig();
+  if (config.serverUrl) {
+    api = makeApi(config.serverUrl);
+  }
+
+  const provider: Provider =
+    options.provider ??
+    (await select({
+      message: "Select CI provider",
+      choices: SUPPORTED_PROVIDERS,
+    }));
+
+  if (!options.force) {
+    try {
+      const existing = await api
+        .get<{
+          hint: string;
+          provider: string;
+        }>(`/projects/${config.projectId}/token/${provider}`)
+        .json();
+      console.log(`A token is already saved for this project.
+
+  Provider: ${existing.provider}
+  Token:    ${existing.hint}
+
+  To replace it, run \`imgcompare token save --force\`.`);
+      return;
+    } catch (e) {
+      if (!(e instanceof HTTPError) || e.response.status !== 404) {
+        handleTokenError(e, "save");
+        process.exit(1);
+      }
+    }
+  }
+
+  const token = await passwordPrompt({
+    message: `Paste your ${provider} project token`,
+  });
+
+  try {
+    await api.post(`/projects/${config.projectId}/token`, {
+      json: { provider, token },
+    });
+    console.log(`Token saved.
+
+  Provider: ${provider}
+  Token:    ${token.slice(0, 6)}...${token.slice(-4)}
+
+  Store this token securely in your CI/CD secrets.`);
+  } catch (e) {
+    handleTokenError(e, "save");
+    process.exit(1);
+  }
+}
+
+interface TokenProviderOptions {
+  provider?: Provider;
+}
+
+async function resolveProvider(
+  options: TokenProviderOptions,
+): Promise<Provider> {
+  return (
+    options.provider ??
+    (await select({
+      message: "Select CI provider",
+      choices: SUPPORTED_PROVIDERS,
+    }))
+  );
+}
+
+async function tokenCheck(options: TokenProviderOptions) {
+  const config = await loadConfig();
+  if (config.serverUrl) {
+    api = makeApi(config.serverUrl);
+  }
+
+  const provider = await resolveProvider(options);
+
+  try {
+    const { hint } = await api
+      .get<{ hint: string }>(`/projects/${config.projectId}/token/${provider}`)
+      .json();
+    console.log(`A token is saved for this project.
+
+  Provider: ${provider}
+  Token:    ${hint}
+
+  To replace it, run \`imgcompare token save --force\`.
+  To remove it, run \`imgcompare token revoke\`.`);
+  } catch (e) {
+    handleTokenError(e, "check");
+    process.exit(1);
+  }
+}
+
+async function tokenRevoke(options: TokenProviderOptions) {
+  const config = await loadConfig();
+  if (config.serverUrl) {
+    api = makeApi(config.serverUrl);
+  }
+
+  const provider = await resolveProvider(options);
+
+  try {
+    await api.delete(`/projects/${config.projectId}/token/${provider}`);
+    console.log("Token revoked. Run `imgcompare token save` to add a new one.");
+  } catch (e) {
+    handleTokenError(e, "revoke");
+    process.exit(1);
+  }
+}
+
 const program = new Command("imgcompare");
 
 program.description("Visual regression testing CLI");
@@ -628,5 +766,28 @@ credentials
     "Revoke the active client credential. Required before generating a new one.",
   )
   .action(credentialsRevoke);
+
+const token = program
+  .command("token")
+  .description("Manage CI provider tokens for this project");
+
+token
+  .command("save")
+  .description("Save or rotate a CI provider token for this project.")
+  .option("--provider <provider>", "CI provider (e.g. gitlab)")
+  .option("--force", "Overwrite an existing token without prompting")
+  .action(tokenSave);
+
+token
+  .command("check")
+  .description("Check whether a CI provider token is saved for this project.")
+  .option("--provider <provider>", "CI provider (e.g. gitlab)")
+  .action(tokenCheck);
+
+token
+  .command("revoke")
+  .description("Remove the saved CI provider token for this project.")
+  .option("--provider <provider>", "CI provider (e.g. gitlab)")
+  .action(tokenRevoke);
 
 program.parse();

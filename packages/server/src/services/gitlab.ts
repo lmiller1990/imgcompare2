@@ -10,13 +10,9 @@ export class GitlabService {
   #gitInfo: GitInfo;
   #ciMetadata: GitLabCiMetadata;
 
-  constructor(gitInfo: GitInfo, ciMetadata: GitLabCiMetadata) {
-    if (!process.env.GITLAB_TOKEN) {
-      throw new Error("Where is the gitlab token? You need it");
-    }
-
+  constructor(gitInfo: GitInfo, ciMetadata: GitLabCiMetadata, token: string) {
     this.#client = new Gitlab({
-      token: process.env.GITLAB_TOKEN,
+      token,
     });
     this.#gitInfo = gitInfo;
     this.#ciMetadata = ciMetadata;

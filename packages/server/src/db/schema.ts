@@ -38,7 +38,6 @@ export const projects = pgTable("projects", {
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   s3BucketUuid: uuid("s3_bucket_uuid").defaultRandom().notNull(),
-  ciTokenCiphertext: bytea("ci_token_ciphertext"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -173,6 +172,22 @@ export const comparisons = pgTable(
       .notNull(),
   },
   (t) => [unique().on(t.baselineSnapshotId, t.currentSnapshotId)],
+);
+
+export const ciTokens = pgTable(
+  "ci_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    ciphertext: bytea("ciphertext").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [unique().on(t.projectId, t.provider)],
 );
 
 export const clientCredentials = pgTable("client_credentials", {

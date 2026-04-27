@@ -5,6 +5,7 @@ import { rootBucket, s3 } from "../../services/s3.ts";
 import {
   findComparisonsForCompleteResults,
   getActiveBaselineForProject,
+  getCiToken,
   getProjectWithRunsAndBaseline,
   getRunById,
   getRunsForProject,
@@ -57,11 +58,6 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
         { gitinfo: req.body?.gitinfo, ciMetadata: req.body?.ciMetadata },
         "got new run",
       );
-      const p = await fastify.db
-        .select()
-        .from(projects)
-        .where(and(eq(projects.id, req.params.projectId)));
-
       const run = await insertRun(fastify.db, req.params.projectId);
 
       if (req.body?.gitinfo) {
@@ -73,8 +69,29 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
         );
 
         if (req.body?.ciMetadata) {
-          if (req.body.ciMetadata.provider === "gitlab") {
-            const gl = new GitlabService(req.body.gitinfo, req.body.ciMetadata);
+          const { provider } = req.body.ciMetadata;
+          const tokenRow = await getCiToken(
+            fastify.db,
+            req.params.projectId,
+            provider,
+          );
+          if (!tokenRow) {
+            return reply.code(400).send({
+              error: `No ${provider} token configured for this project`,
+            });
+          }
+
+          const token = await fastify.secrets.decrypt(
+            tokenRow.ciphertext,
+            req.params.projectId,
+          );
+
+          if (provider === "gitlab") {
+            const gl = new GitlabService(
+              req.body.gitinfo,
+              req.body.ciMetadata,
+              token,
+            );
             // no need to block on this
             gl.setPipelineStatus("running", {
               context: "imgcompare",
