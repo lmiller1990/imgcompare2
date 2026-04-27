@@ -1,5 +1,5 @@
-import { projects } from "../../db/schema.ts";
-import { eq } from "drizzle-orm";
+import { ciTokens } from "../../db/schema.ts";
+import { and, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { CredentialService } from "../../services/credentialService.ts";
 
@@ -61,67 +61,69 @@ export const projectCredentialsRoutesPlugin = async (
     "/projects/:projectId/token",
     { preHandler: [fastify.verifyJwt, fastify.verifyProjectAccess] },
     async (req, reply) => {
-      const ciphertext = await fastify.secrets.encrypt(
-        req.body.token,
-        req.params.projectId,
-      );
+      const { projectId } = req.params;
+      const { provider, token } = req.body;
+
+      const ciphertext = await fastify.secrets.encrypt(token, projectId);
 
       await fastify.db
-        .update(projects)
-        .set({
-          ciTokenCiphertext: ciphertext,
-          ciTokenProvider: req.body.provider,
-        })
-        .where(eq(projects.id, req.params.projectId));
+        .insert(ciTokens)
+        .values({ projectId, provider, ciphertext })
+        .onConflictDoUpdate({
+          target: [ciTokens.projectId, ciTokens.provider],
+          set: { ciphertext },
+        });
 
       reply.code(204).send();
     },
   );
 
-  fastify.get<{ Params: { projectId: string } }>(
-    "/projects/:projectId/token",
+  fastify.get<{ Params: { projectId: string; provider: string } }>(
+    "/projects/:projectId/token/:provider",
     { preHandler: [fastify.verifyJwt, fastify.verifyProjectAccess] },
     async (req, reply) => {
+      const { projectId, provider } = req.params;
+
       const rows = await fastify.db
-        .select({
-          ciTokenCiphertext: projects.ciTokenCiphertext,
-          ciTokenProvider: projects.ciTokenProvider,
-        })
-        .from(projects)
-        .where(eq(projects.id, req.params.projectId));
+        .select({ ciphertext: ciTokens.ciphertext })
+        .from(ciTokens)
+        .where(
+          and(
+            eq(ciTokens.projectId, projectId),
+            eq(ciTokens.provider, provider),
+          ),
+        );
 
       const row = rows[0];
-      if (!row || !row.ciTokenCiphertext) {
+      if (!row) {
         return reply.code(404).send({ error: "Not found" });
       }
 
-      const token = await fastify.secrets.decrypt(
-        row.ciTokenCiphertext,
-        req.params.projectId,
-      );
+      const token = await fastify.secrets.decrypt(row.ciphertext, projectId);
       const hint = token.slice(0, 6) + "..." + token.slice(-4);
-      reply.send({ hint, provider: row.ciTokenProvider });
+      reply.send({ hint, provider });
     },
   );
 
-  fastify.delete<{ Params: { projectId: string } }>(
-    "/projects/:projectId/token",
+  fastify.delete<{ Params: { projectId: string; provider: string } }>(
+    "/projects/:projectId/token/:provider",
     { preHandler: [fastify.verifyJwt, fastify.verifyProjectAccess] },
     async (req, reply) => {
-      const rows = await fastify.db
-        .select({ ciTokenCiphertext: projects.ciTokenCiphertext })
-        .from(projects)
-        .where(eq(projects.id, req.params.projectId));
+      const { projectId, provider } = req.params;
 
-      const row = rows[0];
-      if (!row || !row.ciTokenCiphertext) {
+      const deleted = await fastify.db
+        .delete(ciTokens)
+        .where(
+          and(
+            eq(ciTokens.projectId, projectId),
+            eq(ciTokens.provider, provider),
+          ),
+        )
+        .returning();
+
+      if (deleted.length === 0) {
         return reply.code(404).send({ error: "Not found" });
       }
-
-      await fastify.db
-        .update(projects)
-        .set({ ciTokenCiphertext: null, ciTokenProvider: null })
-        .where(eq(projects.id, req.params.projectId));
 
       reply.code(204).send();
     },

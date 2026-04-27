@@ -623,7 +623,7 @@ async function tokenSave(options: TokenSaveOptions) {
         .get<{
           hint: string;
           provider: string;
-        }>(`/projects/${config.projectId}/token`)
+        }>(`/projects/${config.projectId}/token/${provider}`)
         .json();
       console.log(`A token is already saved for this project.
 
@@ -660,18 +660,33 @@ async function tokenSave(options: TokenSaveOptions) {
   }
 }
 
-async function tokenCheck() {
+interface TokenProviderOptions {
+  provider?: Provider;
+}
+
+async function resolveProvider(
+  options: TokenProviderOptions,
+): Promise<Provider> {
+  return (
+    options.provider ??
+    (await select({
+      message: "Select CI provider",
+      choices: SUPPORTED_PROVIDERS,
+    }))
+  );
+}
+
+async function tokenCheck(options: TokenProviderOptions) {
   const config = await loadConfig();
   if (config.serverUrl) {
     api = makeApi(config.serverUrl);
   }
 
+  const provider = await resolveProvider(options);
+
   try {
-    const { hint, provider } = await api
-      .get<{
-        hint: string;
-        provider: string;
-      }>(`/projects/${config.projectId}/token`)
+    const { hint } = await api
+      .get<{ hint: string }>(`/projects/${config.projectId}/token/${provider}`)
       .json();
     console.log(`A token is saved for this project.
 
@@ -686,14 +701,16 @@ async function tokenCheck() {
   }
 }
 
-async function tokenRevoke() {
+async function tokenRevoke(options: TokenProviderOptions) {
   const config = await loadConfig();
   if (config.serverUrl) {
     api = makeApi(config.serverUrl);
   }
 
+  const provider = await resolveProvider(options);
+
   try {
-    await api.delete(`/projects/${config.projectId}/token`);
+    await api.delete(`/projects/${config.projectId}/token/${provider}`);
     console.log("Token revoked. Run `imgcompare token save` to add a new one.");
   } catch (e) {
     handleTokenError(e, "revoke");
@@ -764,11 +781,13 @@ token
 token
   .command("check")
   .description("Check whether a CI provider token is saved for this project.")
+  .option("--provider <provider>", "CI provider (e.g. gitlab)")
   .action(tokenCheck);
 
 token
   .command("revoke")
   .description("Remove the saved CI provider token for this project.")
+  .option("--provider <provider>", "CI provider (e.g. gitlab)")
   .action(tokenRevoke);
 
 program.parse();

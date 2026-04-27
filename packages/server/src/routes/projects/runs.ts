@@ -1,5 +1,11 @@
 import "dotenv/config";
-import { runs, projects, runApprovals, baselines } from "../../db/schema.ts";
+import {
+  runs,
+  projects,
+  runApprovals,
+  baselines,
+  ciTokens,
+} from "../../db/schema.ts";
 import { and, eq } from "drizzle-orm";
 import { rootBucket, s3 } from "../../services/s3.ts";
 import {
@@ -57,11 +63,6 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
         { gitinfo: req.body?.gitinfo, ciMetadata: req.body?.ciMetadata },
         "got new run",
       );
-      const p = await fastify.db
-        .select()
-        .from(projects)
-        .where(and(eq(projects.id, req.params.projectId)));
-
       const run = await insertRun(fastify.db, req.params.projectId);
 
       if (req.body?.gitinfo) {
@@ -73,17 +74,32 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
         );
 
         if (req.body?.ciMetadata) {
-          if (req.body.ciMetadata.provider === "gitlab") {
-            const ciphertext = p[0]?.ciTokenCiphertext;
-            if (!ciphertext) {
-              return reply
-                .code(400)
-                .send({ error: "No GitLab token configured for this project" });
-            }
-            const token = await fastify.secrets.decrypt(
-              ciphertext,
-              req.params.projectId,
+          const { provider } = req.body.ciMetadata;
+          const tokenRows = await fastify.db
+            .select({ ciphertext: ciTokens.ciphertext })
+            .from(ciTokens)
+            .where(
+              and(
+                eq(ciTokens.projectId, req.params.projectId),
+                eq(ciTokens.provider, provider),
+              ),
             );
+
+          const tokenRow = tokenRows[0];
+          if (!tokenRow) {
+            return reply
+              .code(400)
+              .send({
+                error: `No ${provider} token configured for this project`,
+              });
+          }
+
+          const token = await fastify.secrets.decrypt(
+            tokenRow.ciphertext,
+            req.params.projectId,
+          );
+
+          if (provider === "gitlab") {
             const gl = new GitlabService(
               req.body.gitinfo,
               req.body.ciMetadata,

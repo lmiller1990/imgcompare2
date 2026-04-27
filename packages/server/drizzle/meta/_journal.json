@@ -113,6 +113,13 @@
       "when": 1777289555189,
       "tag": "0015_flat_hobgoblin",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1777290192198,
+      "tag": "0016_bizarre_giant_girl",
+      "breakpoints": true
     }
   ]
 }
