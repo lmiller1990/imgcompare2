@@ -50,7 +50,7 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
   }>(
     "/projects/:projectId/runs",
     {
-      preHandler: [fastify.verifyUser, fastify.verifyProjectAccess],
+      preHandler: [fastify.verifyJwt, fastify.verifyProjectAccess],
     },
     async (req, reply) => {
       logger.info(
@@ -123,7 +123,7 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
   }>(
     "/projects/:projectId/run/:runId/precommit",
     {
-      preHandler: [fastify.verifyUser, fastify.verifyProjectAccess],
+      preHandler: [fastify.verifyJwt, fastify.verifyProjectAccess],
     },
     async (req, reply) => {
       // const run = getRunById(fastify.db, req.params.runId);
@@ -147,7 +147,7 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
   }>(
     "/projects/:projectId/run/:runId/screenshots",
     {
-      preHandler: [fastify.verifyUser, fastify.verifyProjectAccess],
+      preHandler: [fastify.verifyJwt, fastify.verifyProjectAccess],
     },
     async (req, reply) => {
       await services.snapshotService.ensureDirExists();
@@ -187,7 +187,7 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
   fastify.post<{ Params: { projectId: string; runId: string } }>(
     "/projects/:projectId/run/:runId/finalize",
     {
-      preHandler: [fastify.verifyUser, fastify.verifyProjectAccess],
+      preHandler: [fastify.verifyJwt, fastify.verifyProjectAccess],
     },
     async (req, reply) => {
       logger.info(`Received finalize request for run ${req.params.runId}`);
