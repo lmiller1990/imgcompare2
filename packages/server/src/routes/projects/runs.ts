@@ -74,7 +74,21 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
 
         if (req.body?.ciMetadata) {
           if (req.body.ciMetadata.provider === "gitlab") {
-            const gl = new GitlabService(req.body.gitinfo, req.body.ciMetadata);
+            const ciphertext = p[0]?.ciTokenCiphertext;
+            if (!ciphertext) {
+              return reply
+                .code(400)
+                .send({ error: "No GitLab token configured for this project" });
+            }
+            const token = await fastify.secrets.decrypt(
+              ciphertext,
+              req.params.projectId,
+            );
+            const gl = new GitlabService(
+              req.body.gitinfo,
+              req.body.ciMetadata,
+              token,
+            );
             // no need to block on this
             gl.setPipelineStatus("running", {
               context: "imgcompare",

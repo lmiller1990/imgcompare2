@@ -1,3 +1,5 @@
+import { projects } from "../../db/schema.ts";
+import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { CredentialService } from "../../services/credentialService.ts";
 
@@ -49,6 +51,46 @@ export const projectCredentialsRoutesPlugin = async (
         return reply.code(404).send({ error: "Not found" });
       }
       reply.code(204).send();
+    },
+  );
+
+  fastify.post<{ Params: { projectId: string }; Body: { token: string } }>(
+    "/projects/:projectId/token",
+    { preHandler: [fastify.verifyJwt, fastify.verifyProjectAccess] },
+    async (req, reply) => {
+      const ciphertext = await fastify.secrets.encrypt(
+        req.body.token,
+        req.params.projectId,
+      );
+
+      await fastify.db
+        .update(projects)
+        .set({ ciTokenCiphertext: ciphertext })
+        .where(eq(projects.id, req.params.projectId));
+
+      reply.code(204).send();
+    },
+  );
+
+  fastify.get<{ Params: { projectId: string } }>(
+    "/projects/:projectId/token",
+    { preHandler: [fastify.verifyJwt, fastify.verifyProjectAccess] },
+    async (req, reply) => {
+      const rows = await fastify.db
+        .select({ ciTokenCiphertext: projects.ciTokenCiphertext })
+        .from(projects)
+        .where(eq(projects.id, req.params.projectId));
+
+      const row = rows[0];
+      if (!row || !row.ciTokenCiphertext) {
+        return reply.code(404).send({ error: "Not found" });
+      }
+
+      const token = await fastify.secrets.decrypt(
+        row.ciTokenCiphertext,
+        req.params.projectId,
+      );
+      reply.send({ token });
     },
   );
 };
