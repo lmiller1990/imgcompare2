@@ -2,6 +2,7 @@ import { ciTokens } from "../../db/schema.ts";
 import { and, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { CredentialService } from "../../services/credentialService.ts";
+import { getCiToken } from "../../db/queries.ts";
 
 export const projectCredentialsRoutesPlugin = async (
   fastify: FastifyInstance,
@@ -84,17 +85,7 @@ export const projectCredentialsRoutesPlugin = async (
     async (req, reply) => {
       const { projectId, provider } = req.params;
 
-      const rows = await fastify.db
-        .select({ ciphertext: ciTokens.ciphertext })
-        .from(ciTokens)
-        .where(
-          and(
-            eq(ciTokens.projectId, projectId),
-            eq(ciTokens.provider, provider),
-          ),
-        );
-
-      const row = rows[0];
+      const row = await getCiToken(fastify.db, projectId, provider);
       if (!row) {
         return reply.code(404).send({ error: "Not found" });
       }

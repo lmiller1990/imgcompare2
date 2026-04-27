@@ -1,16 +1,11 @@
 import "dotenv/config";
-import {
-  runs,
-  projects,
-  runApprovals,
-  baselines,
-  ciTokens,
-} from "../../db/schema.ts";
+import { runs, projects, runApprovals, baselines } from "../../db/schema.ts";
 import { and, eq } from "drizzle-orm";
 import { rootBucket, s3 } from "../../services/s3.ts";
 import {
   findComparisonsForCompleteResults,
   getActiveBaselineForProject,
+  getCiToken,
   getProjectWithRunsAndBaseline,
   getRunById,
   getRunsForProject,
@@ -75,23 +70,15 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
 
         if (req.body?.ciMetadata) {
           const { provider } = req.body.ciMetadata;
-          const tokenRows = await fastify.db
-            .select({ ciphertext: ciTokens.ciphertext })
-            .from(ciTokens)
-            .where(
-              and(
-                eq(ciTokens.projectId, req.params.projectId),
-                eq(ciTokens.provider, provider),
-              ),
-            );
-
-          const tokenRow = tokenRows[0];
+          const tokenRow = await getCiToken(
+            fastify.db,
+            req.params.projectId,
+            provider,
+          );
           if (!tokenRow) {
-            return reply
-              .code(400)
-              .send({
-                error: `No ${provider} token configured for this project`,
-              });
+            return reply.code(400).send({
+              error: `No ${provider} token configured for this project`,
+            });
           }
 
           const token = await fastify.secrets.decrypt(
