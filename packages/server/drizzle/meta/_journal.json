@@ -127,6 +127,13 @@
       "when": 1777362500000,
       "tag": "0017_run_state_transitions",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1777362480921,
+      "tag": "0018_parched_miss_america",
+      "breakpoints": true
     }
   ]
 }
