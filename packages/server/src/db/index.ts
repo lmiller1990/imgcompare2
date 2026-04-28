@@ -4,7 +4,7 @@ import * as schema from "./schema.ts";
 
 export type DB = NodePgDatabase<typeof schema>;
 
-const db = drizzle(process.env.DATABASE_URL!, { schema, logger: true });
+const db = drizzle(process.env.DATABASE_URL!, { schema, logger: false });
 
 export function getDb(): DB {
   if (!db) {

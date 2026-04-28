@@ -2,7 +2,7 @@
   "type": "module",
   "name": "@packages/server",
   "scripts": {
-    "dev": "nodemon src/index.ts | pino-pretty",
+    "dev": "nodemon --exec 'node src/index.ts | pino-pretty' --ext ts",
     "start": "node src/index.ts",
     "db:migrate": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",

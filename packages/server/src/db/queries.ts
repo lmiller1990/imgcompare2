@@ -129,12 +129,14 @@ export async function getRunsForProject(
   });
 }
 
-export async function getRunById(db: DB, runId: string) {
+export async function getRunById(db: DB, runId: string): RunWithSource {
   const run = await db.query.runs.findFirst({
     where: (b, { eq, and }) => {
       return eq(b.id, runId);
     },
     with: {
+      stateTransitions: true,
+      source: true,
       snapshots: {
         with: {
           baselineComparisons: true,
@@ -369,6 +371,7 @@ export function mapRunStateTransition(row: RunStateTransitionRow): RunStateTrans
     id: row.id,
     runId: row.runId,
     transitionedFrom: row.transitionedFrom ?? undefined,
+    // @ts-ignore - we must type eventually
     transitionedTo: row.transitionedTo,
     transitionedAt: row.transitionedAt.toISOString(),
     transitionedByUserId: row.transitionedByUserId ?? undefined,

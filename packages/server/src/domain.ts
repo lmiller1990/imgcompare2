@@ -16,7 +16,7 @@ export interface RunStateTransition {
   id: string;
   runId: string;
   transitionedFrom: string | undefined;
-  transitionedTo: string;
+  transitionedTo: "pending" | "approved" | "rejected" | "unreviewed";
   transitionedAt: string;
   transitionedByUserId: string | undefined;
   transitionedByService: string | undefined;

@@ -398,7 +398,7 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
       const reviewableResult = createReviewableRun(results, comparisons);
 
       reply.send({
-        run,
+        run: mapRun(run),
         reviewableResult,
       });
     },
@@ -484,5 +484,5 @@ function mergeByName(baseline: Snapshot[], snapshots: Snapshot[]): Result[] {
 
 export interface RunWithResultDto {
   reviewableResult: ReviewableResult[];
-  run: Awaited<ReturnType<typeof getRunById>>;
+  run: RunWithSource;
 }

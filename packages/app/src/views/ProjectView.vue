@@ -4,6 +4,8 @@ import { useRoute, useRouter } from "vue-router";
 import { useQuery } from "@pinia/colada";
 import { getProject } from "../api";
 import { nicelyFormat } from "../utils/datetime";
+import RunStatusBadge from "../components/RunStatusBadge.vue";
+import { getLatestStateTransition } from "../utils/runUtils";
 
 const route = useRoute();
 const router = useRouter();
@@ -87,20 +89,9 @@ function timeAgo(dt: string) {
               </div>
             </td>
             <td>
-              <div v-if="run.approval" class="badge badge-success badge-sm">
-                approved
-              </div>
-              <div
-                v-else
-                :class="{
-                  'badge-warning': run.status === 'unreviewed',
-                  'badge-info': run.status === 'pending',
-                  'badge-error': run.status === 'rejected',
-                }"
-                class="badge badge-sm"
-              >
-                {{ run.status }}
-              </div>
+              <RunStatusBadge
+                :status="getLatestStateTransition(run).transitionedTo"
+              />
             </td>
             <td>{{ nicelyFormat(run.createdAt.toString()) }}</td>
           </tr>
