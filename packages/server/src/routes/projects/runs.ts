@@ -180,13 +180,7 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
       logger.info(`Received screenshot ${fpath}`);
       const imageS3Path = `${req.params.runId}/${req.headers["x-name"]}`;
 
-      // logger.info(
-      //   `File with path ${fullPath} received. File is ${JSON.stringify(file)}`,
-      // );
-
       logger.info(`Received screenshot. name: ${fname} path: ${fpath}`);
-
-      // const imageS3Path = `${req.params.runId}/${file.filename}`;
 
       try {
         await services.snapshotService.store(imageS3Path, {

@@ -42,7 +42,7 @@ export class S3SnapshotService implements SnapshotService {
     try {
       await s3.send(new HeadBucketCommand({ Bucket: this.dir }));
     } catch (err) {
-      logger.error(`Failed to create S3 bucket: ${err}`);
+      logger.error(`Failed to verify S3 bucket exists: ${err}`);
     }
   }
 
