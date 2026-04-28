@@ -3,22 +3,27 @@ import {
   baselines,
   ciTokens,
   comparisons,
-  runApprovals,
   runCompletions,
   runs,
   runSources,
   runManifests,
+  runStateTransitions,
   snapshots,
+  projects,
 } from "./schema.ts";
 import type {
+  BaselineComparison,
   Comparison,
   CompletedResult,
+  Project,
   Result,
   Run,
-  RunApproval,
+  RunDetail,
   RunSource,
+  RunStateTransition,
   RunWithSource,
   Snapshot,
+  SnapshotWithComparisons,
 } from "../domain.ts";
 import { alias } from "drizzle-orm/pg-core";
 import pRetry from "p-retry";
@@ -89,7 +94,6 @@ export async function getProjectWithRunsAndBaseline(db: DB, projectId: string) {
     with: {
       runs: {
         with: {
-          approval: true,
           snapshots: {
             with: {
               baselineComparisons: true,
@@ -111,31 +115,43 @@ export async function getRunsForProject(
   db: DB,
   projectId: string,
 ): Promise<RunWithSource[]> {
-  const runs = await db.query.runs.findMany({
+  const rows = await db.query.runs.findMany({
     where: (b, { eq, and }) => {
       return and(eq(b.projectId, projectId));
     },
     with: {
-      approval: true,
       source: true,
+      stateTransitions: true,
     },
   });
 
-  return runs.map((run) => {
+  return rows.map((run) => {
     return {
       ...mapRun(run),
       source: run.source ? mapRunSource(run.source) : undefined,
-      approval: run.approval ? mapRunApproval(run.approval) : undefined,
+      stateTransitions: run.stateTransitions.map(mapRunStateTransition),
     };
   });
 }
 
-export async function getRunById(db: DB, runId: string) {
+export async function getProjectsForUser(db: DB, userId: string) {
+  const q = await db.query.projects.findMany({
+    where: (b, { eq, and }) => {
+      return eq(b.ownerUserId, userId);
+    },
+  });
+
+  return q.map(mapProject);
+}
+
+export async function getRunById(db: DB, runId: string): Promise<RunDetail> {
   const run = await db.query.runs.findFirst({
     where: (b, { eq, and }) => {
       return eq(b.id, runId);
     },
     with: {
+      stateTransitions: true,
+      source: true,
       snapshots: {
         with: {
           baselineComparisons: true,
@@ -148,7 +164,12 @@ export async function getRunById(db: DB, runId: string) {
     throw new Error(`Could not find run with id ${runId}`);
   }
 
-  return run;
+  return {
+    ...mapRun(run),
+    source: run.source ? mapRunSource(run.source) : undefined,
+    stateTransitions: run.stateTransitions.map(mapRunStateTransition),
+    snapshots: run.snapshots.map(mapSnapshotWithComparisons),
+  };
 }
 
 export async function getComparisonByResult(db: DB, result: CompletedResult) {
@@ -310,7 +331,8 @@ export async function insertSnapshot(
 type SnapshotRow = typeof snapshots.$inferSelect;
 type RunRow = typeof runs.$inferSelect;
 type RunSourceRow = typeof runSources.$inferSelect;
-type RunApprovalRow = typeof runApprovals.$inferSelect;
+type ProjectRow = typeof projects.$inferSelect;
+type RunStateTransitionRow = typeof runStateTransitions.$inferSelect;
 type ComparisonRow = {
   comparison: typeof comparisons.$inferSelect;
   baseline: typeof snapshots.$inferSelect;
@@ -326,9 +348,11 @@ export const mappers = {
   snapshot: {
     toDomain: mapSnapshot,
   },
-
   comparison: {
     toDomain: mapComparison,
+  },
+  runStateTransition: {
+    toDomain: mapRunStateTransition,
   },
 };
 
@@ -355,12 +379,48 @@ function mapSnapshot(row: SnapshotRow): Snapshot {
   };
 }
 
+function mapBaselineComparison(
+  row: typeof comparisons.$inferSelect,
+): BaselineComparison {
+  return {
+    id: row.id,
+    currentSnapshotId: row.currentSnapshotId,
+    difference: row.difference,
+    imagePath: row.imageS3Path,
+  };
+}
+
+function mapSnapshotWithComparisons(
+  row: SnapshotRow & {
+    baselineComparisons: (typeof comparisons.$inferSelect)[];
+  },
+): SnapshotWithComparisons {
+  return {
+    ...mapSnapshot(row),
+    baselineComparisons: row.baselineComparisons.map(mapBaselineComparison),
+  };
+}
+
 export function mapRun(row: RunRow): Run {
   return {
     id: row.id,
-    status: row.status,
     createdAt: row.createdAt.toISOString(),
     runNumber: row.runNumber,
+  };
+}
+
+export function mapRunStateTransition(
+  row: RunStateTransitionRow,
+): RunStateTransition {
+  return {
+    id: row.id,
+    runId: row.runId,
+    transitionedFrom: row.transitionedFrom ?? undefined,
+    // @ts-ignore - we must type eventually
+    transitionedTo: row.transitionedTo,
+    transitionedAt: row.transitionedAt.toISOString(),
+    transitionedByUserId: row.transitionedByUserId ?? undefined,
+    transitionedByService: row.transitionedByService ?? undefined,
   };
 }
 
@@ -374,12 +434,41 @@ export function mapRunSource(row: RunSourceRow): RunSource {
   };
 }
 
-export function mapRunApproval(row: RunApprovalRow): RunApproval {
+export function mapProject(row: ProjectRow): Project {
   return {
     id: row.id,
-    approvedAt: row.approvedAt.toISOString(),
-    approvedByUser: row.approvedByUserId,
+    name: row.name,
+    createdAt: row.createdAt.toISOString(),
   };
+}
+
+export async function getLatestRunState(
+  db: DB,
+  runId: string,
+): Promise<string | undefined> {
+  const row = await db.query.runStateTransitions.findFirst({
+    where: (t, { eq }) => eq(t.runId, runId),
+    orderBy: (t, { desc }) => desc(t.transitionedAt),
+    columns: { transitionedTo: true },
+  });
+  return row?.transitionedTo;
+}
+
+export async function insertRunStateTransition(
+  db: DB,
+  params: {
+    runId: string;
+    transitionedFrom: string | undefined;
+    transitionedTo: string;
+    transitionedByUserId?: string;
+    transitionedByService?: string;
+  },
+) {
+  const record = await db
+    .insert(runStateTransitions)
+    .values(params)
+    .returning();
+  return record[0]!;
 }
 
 export type RunsForProject = Awaited<ReturnType<typeof getRunsForProject>>;

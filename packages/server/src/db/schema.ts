@@ -11,7 +11,9 @@ import {
   integer,
   jsonb,
   customType,
+  check,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 const bytea = customType<{ data: Buffer }>({
   dataType() {
@@ -50,7 +52,6 @@ export const runs = pgTable(
     projectId: uuid("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
-    status: text("status").notNull().default("pending"),
     runNumber: integer().notNull(),
     snapshotsProcessed: integer().default(0),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -97,18 +98,30 @@ export const snapshots = pgTable("snapshots", {
   status: text("status").notNull(),
 });
 
-export const runApprovals = pgTable("run_approvals", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  runId: uuid("run_id")
-    .notNull()
-    .references(() => runs.id, { onDelete: "cascade" }),
-  approvedByUserId: uuid("approved_by_user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "restrict" }),
-  approvedAt: timestamp("approved_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+export const runStateTransitions = pgTable(
+  "run_state_transitions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => runs.id, { onDelete: "cascade" }),
+    transitionedFrom: text("transitioned_from"),
+    transitionedTo: text("transitioned_to").notNull(),
+    transitionedAt: timestamp("transitioned_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    transitionedByUserId: uuid("transitioned_by_user_id").references(
+      () => users.id,
+    ),
+    transitionedByService: text("transitioned_by_service"),
+  },
+  (t) => [
+    check(
+      "actor_xor",
+      sql`(${t.transitionedByUserId} IS NOT NULL) != (${t.transitionedByService} IS NOT NULL)`,
+    ),
+  ],
+);
 
 // Idempotent guard
 export const runCompletions = pgTable(
@@ -241,15 +254,19 @@ export const runsRelations = relations(runs, ({ one, many }) => ({
   snapshots: many(snapshots),
   source: one(runSources),
   manifest: one(runManifests),
-  approval: one(runApprovals),
+  stateTransitions: many(runStateTransitions),
 }));
 
-export const runApprovalsRelationss = relations(
-  runApprovals,
-  ({ one, many }) => ({
+export const runStateTransitionsRelations = relations(
+  runStateTransitions,
+  ({ one }) => ({
     run: one(runs, {
-      fields: [runApprovals.runId],
+      fields: [runStateTransitions.runId],
       references: [runs.id],
+    }),
+    transitionedByUser: one(users, {
+      fields: [runStateTransitions.transitionedByUserId],
+      references: [users.id],
     }),
   }),
 );

@@ -4,22 +4,25 @@ import { useKy } from "../composables/ky";
 import type { RunWithResultDto } from "@packages/server/src/routes/projects/runs";
 import { useToast } from "../composables/useToast";
 import { useProjectRunQuery } from "../api";
-import { watchEffect } from "vue";
+import { getLatestStateTransition } from "../utils/runUtils";
+import { computed } from "vue";
 
 const route = useRoute();
 const router = useRouter();
 const ky = useKy();
 const toast = useToast();
 
+const projectId = computed(() => route.params.projectId as string | undefined);
+
+const runId = computed(() => route.params.runId as string | undefined);
+
+const enabled = computed(() => Boolean(projectId.value && runId.value));
 const {
   state: runState,
   asyncStatus,
   status,
   error,
-} = useProjectRunQuery(
-  route.params.projectId as string,
-  route.params.runId as string,
-);
+} = useProjectRunQuery(projectId, runId, enabled);
 
 function formatPercent(value: number) {
   return (value * 100).toFixed(2) + "%";
@@ -38,7 +41,13 @@ async function handleApprove() {
   <div v-if="asyncStatus === 'loading'">Loading...</div>
   <div v-else-if="status === 'error'">Error. {{ error }}</div>
   <template v-else-if="runState.data">
-    <div v-if="runState.data.run.status === 'unreviewed'" class="my-2">
+    <div
+      v-if="
+        getLatestStateTransition(runState.data.run.stateTransitions)
+          .transitionedTo === 'unreviewed'
+      "
+      class="my-2"
+    >
       <form @submit.prevent="handleApprove">
         <button class="btn btn-success btn-sm">Approve</button>
       </form>

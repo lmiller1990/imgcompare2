@@ -1,17 +1,23 @@
 <script setup lang="ts">
 import { DateTime } from "luxon";
 import { useRoute, useRouter } from "vue-router";
-import { useQuery } from "@pinia/colada";
-import { getProject } from "../api";
+import { useProjectQuery } from "../api";
 import { nicelyFormat } from "../utils/datetime";
+import RunStatusBadge from "../components/RunStatusBadge.vue";
+import { getLatestStateTransition } from "../utils/runUtils";
+import { computed } from "vue";
 
 const route = useRoute();
 const router = useRouter();
 
-const { state: projectState, asyncStatus } = useQuery({
-  key: () => ["project", route.params.projectId],
-  query: () => getProject(route.params.projectId as string),
-});
+const projectId = computed(
+  () => (route.params.projectId as string) ?? undefined,
+);
+const enabled = computed(() => !!projectId.value);
+const { state: projectState, asyncStatus } = useProjectQuery(
+  projectId,
+  enabled,
+);
 
 function handleNavToRun(runId: string) {
   router.push(`/projects/${route.params.projectId}/runs/${runId}`);
@@ -32,7 +38,9 @@ function timeAgo(dt: string) {
   <div v-else-if="projectState.data">
     <div class="flex justify-end items-center">
       <div v-if="projectState.data.activeBaseline">
-        <div class="rounded-box border border-base-content/5 bg-base-10 mb-2">
+        <div
+          class="rounded-box border border-base-content/5 bg-base-10 mb-2 p-2"
+        >
           <p class="text-sm">
             Active baseline:
             <RouterLink
@@ -87,20 +95,11 @@ function timeAgo(dt: string) {
               </div>
             </td>
             <td>
-              <div v-if="run.approval" class="badge badge-success badge-sm">
-                approved
-              </div>
-              <div
-                v-else
-                :class="{
-                  'badge-warning': run.status === 'unreviewed',
-                  'badge-info': run.status === 'pending',
-                  'badge-error': run.status === 'rejected',
-                }"
-                class="badge badge-sm"
-              >
-                {{ run.status }}
-              </div>
+              <RunStatusBadge
+                :status="
+                  getLatestStateTransition(run.stateTransitions).transitionedTo
+                "
+              />
             </td>
             <td>{{ nicelyFormat(run.createdAt.toString()) }}</td>
           </tr>

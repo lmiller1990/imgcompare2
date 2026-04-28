@@ -338,8 +338,8 @@ async function findAllScreenshots(cwd: string) {
   return files;
 }
 
-export function postScreenshot() {
-  //
+async function markRunAsComplete(projectId: string, runId: string) {
+  // TODO why double request here - can we just have one
 }
 
 async function postScreenshots(
@@ -433,17 +433,6 @@ Please review and update it as needed.
   }
 }
 
-async function markRunAsComplete(projectId: string, runId: string) {
-  // TODO why double request here - can we just have one
-  await api.patch(`/projects/${projectId}/run/${runId}`, {
-    json: {
-      status: "unreviewed",
-    },
-  });
-
-  await api.post(`/projects/${projectId}/run/${runId}/finalize`);
-}
-
 async function exec(args: string[]) {
   const [cmd, ...cmdArgs] = args;
   if (!cmd) {
@@ -492,7 +481,9 @@ async function exec(args: string[]) {
   console.log("Run complete. Finalizing screenshots and comparisons...");
   const files = await findAllScreenshots(process.cwd());
   await postScreenshots(process.cwd(), config.projectId, runId, files);
-  await markRunAsComplete(config.projectId, runId);
+
+  // kick of the processing
+  await api.post(`/projects/${config.projectId}/run/${runId}/finalize`);
   process.exit(exitCode);
 }
 

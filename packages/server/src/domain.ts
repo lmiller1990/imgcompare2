@@ -1,6 +1,5 @@
 export interface Run {
   id: string;
-  status: string;
   createdAt: string;
   runNumber: number;
 }
@@ -13,21 +12,45 @@ export interface RunSource {
   authorName: string | undefined;
 }
 
-export interface RunApproval {
+export interface RunStateTransition {
   id: string;
-  approvedByUser: any;
-  approvedAt: string;
+  runId: string;
+  transitionedFrom: string | undefined;
+  transitionedTo: "pending" | "approved" | "rejected" | "unreviewed";
+  transitionedAt: string;
+  transitionedByUserId: string | undefined;
+  transitionedByService: string | undefined;
 }
 
 export interface RunWithSource extends Run {
   source: RunSource | undefined;
-  approval: RunApproval | undefined;
+  stateTransitions: RunStateTransition[];
+}
+
+export interface RunWithSnapshots extends Run {
+  source: RunSource | undefined;
+  snapshots: Snapshot[];
+}
+
+export interface BaselineComparison {
+  id: string;
+  currentSnapshotId: string;
+  difference: number;
+  imagePath: string;
+}
+
+export interface SnapshotWithComparisons extends Snapshot {
+  baselineComparisons: BaselineComparison[];
+}
+
+export interface RunDetail extends RunWithSource {
+  snapshots: SnapshotWithComparisons[];
 }
 
 export interface Project {
   id: string;
   name: string;
-  runs: Run[];
+  createdAt: string;
 }
 
 export interface Snapshot {

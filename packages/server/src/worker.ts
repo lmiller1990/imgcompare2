@@ -1,15 +1,15 @@
-import fs from "node:fs/promises";
 import { Queue, Worker } from "bullmq";
 import IORedis from "ioredis";
 import type { Result } from "./domain.ts";
 import { PNG } from "pngjs";
 import pixelmatch from "pixelmatch";
 import {
+  getLatestRunState,
   getTotalSnapshotCount,
   incrementSnapshotsProcessed,
   insertComparison,
   insertRunCompletion,
-  patchRun,
+  insertRunStateTransition,
 } from "./db/queries.ts";
 import pino from "pino";
 import { randomUUID } from "node:crypto";
@@ -38,9 +38,9 @@ logger.info("Initializing snapshot comparison worker");
 const worker = new Worker<SnapshotComparisonWorkerPayload>(
   "diff",
   async (job) => {
+    logger.debug({ "job.data": job.data }, `Processing diff`);
     const base = job.data.result.baseline;
     const incoming = job.data.result.snapshot;
-    logger.debug({ "job.data": job.data }, `Processing diff`);
 
     console.log({ base, incoming });
     if (!base || !incoming) {
@@ -73,7 +73,6 @@ const worker = new Worker<SnapshotComparisonWorkerPayload>(
         },
       );
 
-      await fs.writeFile("out.png", PNG.sync.write(diff));
       const uuid = randomUUID();
 
       const key = `${job.data.runId}/${uuid}.png`;
@@ -110,7 +109,13 @@ const worker = new Worker<SnapshotComparisonWorkerPayload>(
         logger.info(
           `All snapshots processed (${processed}/${total}). Setting run[id=${job.data.runId}] to completed`,
         );
-        await patchRun(db, job.data.runId, { status: "completed" });
+        const currentState = await getLatestRunState(db, job.data.runId);
+        await insertRunStateTransition(db, {
+          runId: job.data.runId,
+          transitionedFrom: currentState,
+          transitionedTo: "unreviewed",
+          transitionedByService: "worker",
+        });
         return;
       }
 
