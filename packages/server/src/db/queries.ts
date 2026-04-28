@@ -11,14 +11,17 @@ import {
   snapshots,
 } from "./schema.ts";
 import type {
+  BaselineComparison,
   Comparison,
   CompletedResult,
   Result,
   Run,
+  RunDetail,
   RunSource,
   RunStateTransition,
   RunWithSource,
   Snapshot,
+  SnapshotWithComparisons,
 } from "../domain.ts";
 import { alias } from "drizzle-orm/pg-core";
 import pRetry from "p-retry";
@@ -129,7 +132,10 @@ export async function getRunsForProject(
   });
 }
 
-export async function getRunById(db: DB, runId: string): RunWithSource {
+export async function getRunById(
+  db: DB,
+  runId: string,
+): Promise<RunDetail> {
   const run = await db.query.runs.findFirst({
     where: (b, { eq, and }) => {
       return eq(b.id, runId);
@@ -149,7 +155,12 @@ export async function getRunById(db: DB, runId: string): RunWithSource {
     throw new Error(`Could not find run with id ${runId}`);
   }
 
-  return run;
+  return {
+    ...mapRun(run),
+    source: run.source ? mapRunSource(run.source) : undefined,
+    stateTransitions: run.stateTransitions.map(mapRunStateTransition),
+    snapshots: run.snapshots.map(mapSnapshotWithComparisons),
+  };
 }
 
 export async function getComparisonByResult(db: DB, result: CompletedResult) {
@@ -358,6 +369,26 @@ function mapSnapshot(row: SnapshotRow): Snapshot {
   };
 }
 
+function mapBaselineComparison(
+  row: typeof comparisons.$inferSelect,
+): BaselineComparison {
+  return {
+    id: row.id,
+    currentSnapshotId: row.currentSnapshotId,
+    difference: row.difference,
+    imagePath: row.imageS3Path,
+  };
+}
+
+function mapSnapshotWithComparisons(
+  row: SnapshotRow & { baselineComparisons: (typeof comparisons.$inferSelect)[] },
+): SnapshotWithComparisons {
+  return {
+    ...mapSnapshot(row),
+    baselineComparisons: row.baselineComparisons.map(mapBaselineComparison),
+  };
+}
+
 export function mapRun(row: RunRow): Run {
   return {
     id: row.id,
@@ -366,7 +397,9 @@ export function mapRun(row: RunRow): Run {
   };
 }
 
-export function mapRunStateTransition(row: RunStateTransitionRow): RunStateTransition {
+export function mapRunStateTransition(
+  row: RunStateTransitionRow,
+): RunStateTransition {
   return {
     id: row.id,
     runId: row.runId,

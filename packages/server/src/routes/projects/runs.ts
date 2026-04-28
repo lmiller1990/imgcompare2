@@ -62,8 +62,15 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
       );
       const run = await insertRun(fastify.db, req.params.projectId);
 
-      const jwtPayload = req.user as { type?: string; projectId?: string; email?: string };
-      let actor: { transitionedByUserId?: string; transitionedByService?: string };
+      const jwtPayload = req.user as {
+        type?: string;
+        projectId?: string;
+        email?: string;
+      };
+      let actor: {
+        transitionedByUserId?: string;
+        transitionedByService?: string;
+      };
       if (jwtPayload.type === "service") {
         actor = { transitionedByService: "ci" };
       } else {
@@ -249,9 +256,10 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
       }
 
       const run = await getRunById(fastify.db, req.params.runId);
+
       // comparison time
       const blSnapshots = bl.run.snapshots.map(mappers.snapshot.toDomain);
-      const incomingSnapshots = run.snapshots.map(mappers.snapshot.toDomain);
+      const incomingSnapshots = run.snapshots;
       const results = mergeByName(blSnapshots, incomingSnapshots);
 
       for (const result of results) {
@@ -272,7 +280,10 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
       preHandler: [fastify.verifyUser, fastify.verifyProjectAccess],
     },
     async (req, reply) => {
-      const currentState = await getLatestRunState(fastify.db, req.params.runId);
+      const currentState = await getLatestRunState(
+        fastify.db,
+        req.params.runId,
+      );
       await insertRunStateTransition(fastify.db, {
         runId: req.params.runId,
         transitionedFrom: currentState,
@@ -345,7 +356,7 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
 
       const snapshotInputs = run.snapshots.map((s) => ({
         original: s,
-        domain: mappers.snapshot.toDomain(s),
+        domain: s,
       }));
 
       const baselineInputs = baseline
@@ -398,7 +409,7 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
       const reviewableResult = createReviewableRun(results, comparisons);
 
       reply.send({
-        run: mapRun(run),
+        run,
         reviewableResult,
       });
     },

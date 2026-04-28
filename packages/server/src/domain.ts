@@ -27,6 +27,26 @@ export interface RunWithSource extends Run {
   stateTransitions: RunStateTransition[];
 }
 
+export interface RunWithSnapshots extends Run {
+  source: RunSource | undefined;
+  snapshots: Snapshot[];
+}
+
+export interface BaselineComparison {
+  id: string;
+  currentSnapshotId: string;
+  difference: number;
+  imagePath: string;
+}
+
+export interface SnapshotWithComparisons extends Snapshot {
+  baselineComparisons: BaselineComparison[];
+}
+
+export interface RunDetail extends RunWithSource {
+  snapshots: SnapshotWithComparisons[];
+}
+
 export interface Project {
   id: string;
   name: string;
