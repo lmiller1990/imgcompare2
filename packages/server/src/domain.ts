@@ -12,8 +12,19 @@ export interface RunSource {
   authorName: string | undefined;
 }
 
+export interface RunStateTransition {
+  id: string;
+  runId: string;
+  transitionedFrom: string | undefined;
+  transitionedTo: string;
+  transitionedAt: string;
+  transitionedByUserId: string | undefined;
+  transitionedByService: string | undefined;
+}
+
 export interface RunWithSource extends Run {
   source: RunSource | undefined;
+  stateTransitions: RunStateTransition[];
 }
 
 export interface Project {

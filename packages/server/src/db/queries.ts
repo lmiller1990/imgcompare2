@@ -16,6 +16,7 @@ import type {
   Result,
   Run,
   RunSource,
+  RunStateTransition,
   RunWithSource,
   Snapshot,
 } from "../domain.ts";
@@ -115,6 +116,7 @@ export async function getRunsForProject(
     },
     with: {
       source: true,
+      stateTransitions: true,
     },
   });
 
@@ -122,6 +124,7 @@ export async function getRunsForProject(
     return {
       ...mapRun(run),
       source: run.source ? mapRunSource(run.source) : undefined,
+      stateTransitions: run.stateTransitions.map(mapRunStateTransition),
     };
   });
 }
@@ -306,6 +309,7 @@ export async function insertSnapshot(
 type SnapshotRow = typeof snapshots.$inferSelect;
 type RunRow = typeof runs.$inferSelect;
 type RunSourceRow = typeof runSources.$inferSelect;
+type RunStateTransitionRow = typeof runStateTransitions.$inferSelect;
 type ComparisonRow = {
   comparison: typeof comparisons.$inferSelect;
   baseline: typeof snapshots.$inferSelect;
@@ -321,9 +325,11 @@ export const mappers = {
   snapshot: {
     toDomain: mapSnapshot,
   },
-
   comparison: {
     toDomain: mapComparison,
+  },
+  runStateTransition: {
+    toDomain: mapRunStateTransition,
   },
 };
 
@@ -355,6 +361,18 @@ export function mapRun(row: RunRow): Run {
     id: row.id,
     createdAt: row.createdAt.toISOString(),
     runNumber: row.runNumber,
+  };
+}
+
+export function mapRunStateTransition(row: RunStateTransitionRow): RunStateTransition {
+  return {
+    id: row.id,
+    runId: row.runId,
+    transitionedFrom: row.transitionedFrom ?? undefined,
+    transitionedTo: row.transitionedTo,
+    transitionedAt: row.transitionedAt.toISOString(),
+    transitionedByUserId: row.transitionedByUserId ?? undefined,
+    transitionedByService: row.transitionedByService ?? undefined,
   };
 }
 
