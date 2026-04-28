@@ -55,26 +55,57 @@ function maybeCollectCiMetadata(): CiMetadata | undefined {
   return undefined;
 }
 
+function getFromGitLabEnvVars(): GitInfo {
+  const hash = process.env.CI_COMMIT_SHA ?? "";
+  const branch = process.env.CI_COMMIT_REF_NAME ?? "";
+
+  // CI_COMMIT_AUTHOR = "Name <email>"
+  const authorRaw = process.env.CI_COMMIT_AUTHOR || "";
+
+  const authorName = authorRaw.replace(/ <.*$/, "") ?? "";
+  const authorEmailMatch = authorRaw.match(/<(.*)>/);
+  const authorEmail = authorEmailMatch ? authorEmailMatch[1] : "";
+
+  const result: GitInfo = {
+    hash,
+    authorName,
+    authorEmail,
+    branch,
+  };
+
+  debug("Got git info from gitlab env vars. %o", result);
+
+  return result;
+}
+
+async function getFromLocalGit(): Promise<GitInfo | undefined> {
+  const git = simpleGit();
+
+  const log = await git.log({ maxCount: 1 });
+  const branchSummary = await git.branch();
+
+  const latest = log.latest;
+
+  if (!latest) {
+    debug("Use is not using git. Ignoring.");
+    return;
+  }
+
+  return {
+    hash: latest.hash,
+    authorName: latest.author_name,
+    authorEmail: latest.author_email,
+    branch: branchSummary.current,
+  };
+}
+
 export async function maybeGetGitInfo(): Promise<GitInfo | undefined> {
   try {
-    const git = simpleGit();
-
-    const log = await git.log({ maxCount: 1 });
-    const branchSummary = await git.branch();
-
-    const latest = log.latest;
-
-    if (!latest) {
-      debug("Use is not using git. Ignoring.");
-      return;
+    if (process.env.GITLAB_CI) {
+      return getFromGitLabEnvVars();
+    } else {
+      return await getFromLocalGit();
     }
-
-    return {
-      hash: latest.hash,
-      authorName: latest.author_name,
-      authorEmail: latest.author_email,
-      branch: branchSummary.current,
-    };
   } catch (e) {
     debug(
       "Use is not using git, or another error in getting git info. Ignoring. Error was %s",
@@ -449,6 +480,7 @@ async function exec(args: string[]) {
   }
 
   const gitinfo = await maybeGetGitInfo();
+
   // I want to run on CI to test the local experience. So we "pretend" not to be CI
   const ciMetadata = process.env.PRETEND_NOT_CI
     ? undefined

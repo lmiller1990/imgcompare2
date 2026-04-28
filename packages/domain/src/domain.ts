@@ -1,8 +1,8 @@
 export type GitInfo = {
   hash: string;
-  authorName: string;
-  authorEmail: string;
-  branch: string;
+  authorName: string | undefined;
+  authorEmail: string | undefined;
+  branch: string | undefined;
 };
 
 export interface RunManifest {
