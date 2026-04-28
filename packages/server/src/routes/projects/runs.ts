@@ -354,38 +354,29 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
 
       const presignedUrlService = new PresignedUrlService(s3);
 
-      const snapshotInputs = run.snapshots.map((s) => ({
-        original: s,
-        domain: s,
-      }));
-
-      const baselineInputs = baseline
-        ? baseline.run.snapshots.map((s) => ({
-            original: s,
-            domain: mappers.snapshot.toDomain(s),
-          }))
+      const baselineSnapshots = baseline
+        ? baseline.run.snapshots.map(mappers.snapshot.toDomain)
         : [];
 
       const snapshotUrls = await presignedUrlService.generateBatchPresignedUrls(
-        snapshotInputs.map((i) => i.domain.imagePath),
+        run.snapshots.map((s) => s.imagePath),
         { bucket: rootBucket },
       );
 
       const baselineUrls = baseline
         ? await presignedUrlService.generateBatchPresignedUrls(
-            baselineInputs.map((i) => i.domain.imagePath),
+            baselineSnapshots.map((s) => s.imagePath),
             { bucket: rootBucket },
           )
         : [];
 
-      // can these be missing??
-      const snapshotsWithUrls: Snapshot[] = snapshotInputs.map((input, i) => ({
-        ...input.original,
+      const snapshotsWithUrls: Snapshot[] = run.snapshots.map((s, i) => ({
+        ...s,
         imagePath: snapshotUrls[i]!,
       }));
 
-      const baselineWithUrls: Snapshot[] = baselineInputs.map((input, i) => ({
-        ...input.original,
+      const baselineWithUrls: Snapshot[] = baselineSnapshots.map((s, i) => ({
+        ...s,
         imagePath: baselineUrls[i]!,
       }));
 
