@@ -5,11 +5,12 @@ import type { Result } from "./domain.ts";
 import { PNG } from "pngjs";
 import pixelmatch from "pixelmatch";
 import {
+  getLatestRunState,
   getTotalSnapshotCount,
   incrementSnapshotsProcessed,
   insertComparison,
   insertRunCompletion,
-  patchRun,
+  insertRunStateTransition,
 } from "./db/queries.ts";
 import pino from "pino";
 import { randomUUID } from "node:crypto";
@@ -110,7 +111,13 @@ const worker = new Worker<SnapshotComparisonWorkerPayload>(
         logger.info(
           `All snapshots processed (${processed}/${total}). Setting run[id=${job.data.runId}] to completed`,
         );
-        await patchRun(db, job.data.runId, { status: "completed" });
+        const currentState = await getLatestRunState(db, job.data.runId);
+        await insertRunStateTransition(db, {
+          runId: job.data.runId,
+          transitionedFrom: currentState,
+          transitionedTo: "unreviewed",
+          transitionedByService: "worker",
+        });
         return;
       }
 

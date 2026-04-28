@@ -1,17 +1,19 @@
 import "dotenv/config";
-import { runs, projects, runApprovals, baselines } from "../../db/schema.ts";
+import { runs, projects, baselines, users } from "../../db/schema.ts";
 import { and, eq } from "drizzle-orm";
 import { rootBucket, s3 } from "../../services/s3.ts";
 import {
   findComparisonsForCompleteResults,
   getActiveBaselineForProject,
   getCiToken,
+  getLatestRunState,
   getProjectWithRunsAndBaseline,
   getRunById,
   getRunsForProject,
   insertRun,
   insertRunManifest,
   insertRunSource,
+  insertRunStateTransition,
   insertSnapshot,
   mappers,
   mapRun,
@@ -59,6 +61,24 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
         "got new run",
       );
       const run = await insertRun(fastify.db, req.params.projectId);
+
+      const jwtPayload = req.user as { type?: string; projectId?: string; email?: string };
+      let actor: { transitionedByUserId?: string; transitionedByService?: string };
+      if (jwtPayload.type === "service") {
+        actor = { transitionedByService: "ci" };
+      } else {
+        const [dbUser] = await fastify.db
+          .select({ id: users.id })
+          .from(users)
+          .where(eq(users.email, jwtPayload.email!));
+        actor = { transitionedByUserId: dbUser?.id };
+      }
+      await insertRunStateTransition(fastify.db, {
+        runId: run.id,
+        transitionedFrom: undefined,
+        transitionedTo: "pending",
+        ...actor,
+      });
 
       if (req.body?.gitinfo) {
         req.log.info({ gitinfo: req.body.gitinfo }, "New run with gitinfo");
@@ -249,9 +269,12 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
       preHandler: [fastify.verifyUser, fastify.verifyProjectAccess],
     },
     async (req, reply) => {
-      await fastify.db.insert(runApprovals).values({
+      const currentState = await getLatestRunState(fastify.db, req.params.runId);
+      await insertRunStateTransition(fastify.db, {
         runId: req.params.runId,
-        approvedByUserId: req.dbUser.id,
+        transitionedFrom: currentState,
+        transitionedTo: "approved",
+        transitionedByUserId: req.dbUser.id,
       });
 
       await fastify.db.insert(baselines).values({

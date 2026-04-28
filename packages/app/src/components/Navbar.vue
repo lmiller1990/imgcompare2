@@ -25,9 +25,12 @@ const { state: projectState } = useQuery({
       <RouterLink class="btn btn-ghost text-xl" to="/projects"
         >Visual Tester</RouterLink
       >
-      <div>
+      <RouterLink
+        v-if="route.params.projectId"
+        :to="`/projects/${route.params.projectId}/runs`"
+      >
         {{ projectState.data?.name }}
-      </div>
+      </RouterLink>
     </div>
     <div class="flex-none">
       <ul class="menu menu-horizontal px-1">

@@ -3,11 +3,11 @@ import {
   baselines,
   ciTokens,
   comparisons,
-  runApprovals,
   runCompletions,
   runs,
   runSources,
   runManifests,
+  runStateTransitions,
   snapshots,
 } from "./schema.ts";
 import type {
@@ -15,7 +15,6 @@ import type {
   CompletedResult,
   Result,
   Run,
-  RunApproval,
   RunSource,
   RunWithSource,
   Snapshot,
@@ -89,7 +88,6 @@ export async function getProjectWithRunsAndBaseline(db: DB, projectId: string) {
     with: {
       runs: {
         with: {
-          approval: true,
           snapshots: {
             with: {
               baselineComparisons: true,
@@ -111,21 +109,19 @@ export async function getRunsForProject(
   db: DB,
   projectId: string,
 ): Promise<RunWithSource[]> {
-  const runs = await db.query.runs.findMany({
+  const rows = await db.query.runs.findMany({
     where: (b, { eq, and }) => {
       return and(eq(b.projectId, projectId));
     },
     with: {
-      approval: true,
       source: true,
     },
   });
 
-  return runs.map((run) => {
+  return rows.map((run) => {
     return {
       ...mapRun(run),
       source: run.source ? mapRunSource(run.source) : undefined,
-      approval: run.approval ? mapRunApproval(run.approval) : undefined,
     };
   });
 }
@@ -310,7 +306,6 @@ export async function insertSnapshot(
 type SnapshotRow = typeof snapshots.$inferSelect;
 type RunRow = typeof runs.$inferSelect;
 type RunSourceRow = typeof runSources.$inferSelect;
-type RunApprovalRow = typeof runApprovals.$inferSelect;
 type ComparisonRow = {
   comparison: typeof comparisons.$inferSelect;
   baseline: typeof snapshots.$inferSelect;
@@ -358,7 +353,6 @@ function mapSnapshot(row: SnapshotRow): Snapshot {
 export function mapRun(row: RunRow): Run {
   return {
     id: row.id,
-    status: row.status,
     createdAt: row.createdAt.toISOString(),
     runNumber: row.runNumber,
   };
@@ -374,12 +368,33 @@ export function mapRunSource(row: RunSourceRow): RunSource {
   };
 }
 
-export function mapRunApproval(row: RunApprovalRow): RunApproval {
-  return {
-    id: row.id,
-    approvedAt: row.approvedAt.toISOString(),
-    approvedByUser: row.approvedByUserId,
-  };
+export async function getLatestRunState(
+  db: DB,
+  runId: string,
+): Promise<string | undefined> {
+  const row = await db.query.runStateTransitions.findFirst({
+    where: (t, { eq }) => eq(t.runId, runId),
+    orderBy: (t, { desc }) => desc(t.transitionedAt),
+    columns: { transitionedTo: true },
+  });
+  return row?.transitionedTo;
+}
+
+export async function insertRunStateTransition(
+  db: DB,
+  params: {
+    runId: string;
+    transitionedFrom: string | undefined;
+    transitionedTo: string;
+    transitionedByUserId?: string;
+    transitionedByService?: string;
+  },
+) {
+  const record = await db
+    .insert(runStateTransitions)
+    .values(params)
+    .returning();
+  return record[0]!;
 }
 
 export type RunsForProject = Awaited<ReturnType<typeof getRunsForProject>>;
