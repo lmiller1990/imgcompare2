@@ -1,17 +1,14 @@
-import type {
-  RunStateTransition,
-  RunWithSource,
-} from "@packages/server/src/domain";
+import type { RunStateTransition } from "@packages/server/src/domain";
 import { DateTime } from "luxon";
 
 export function getLatestStateTransition(
-  run: RunWithSource,
+  stateTransitions: RunStateTransition[],
 ): RunStateTransition {
-  const st = run.stateTransitions.sort((x, y) =>
+  const st = stateTransitions.sort((x, y) =>
     DateTime.fromISO(y.transitionedAt, { zone: "utc" }) <
     DateTime.fromISO(x.transitionedAt, { zone: "utc" })
-      ? 1
-      : -1,
+      ? -1
+      : 1,
   );
   if (!st[0]) {
     throw new Error(

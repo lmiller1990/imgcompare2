@@ -1,17 +1,11 @@
 <script setup lang="ts">
 import { useProjectsQuery } from "../api";
+import { nicelyFormat } from "../utils/datetime";
 
 const { state: projectsList, asyncStatus } = useProjectsQuery();
 </script>
 
 <template>
-  <div class="flex items-center justify-between">
-    <h2 class="text-xl">Projects</h2>
-    <div class="flex justify-end mb-2">
-      <RouterLink class="btn" to="/projects/new">Create Project</RouterLink>
-    </div>
-  </div>
-
   <div v-if="asyncStatus === 'loading'" />
   <div v-if="projectsList.error">
     <div :error="projectsList.error" />
@@ -28,13 +22,13 @@ const { state: projectsList, asyncStatus } = useProjectsQuery();
           </tr>
         </thead>
         <tbody>
-          <tr v-for="project in projectsList.data.projects" :key="project.id">
+          <tr v-for="project in projectsList.data" :key="project.id">
             <td>
               <RouterLink class="link" :to="`/projects/${project.id}/runs`">
                 {{ project.name }}
               </RouterLink>
             </td>
-            <td>{{ project.createdAt }}</td>
+            <td>{{ nicelyFormat(project.createdAt) }}</td>
           </tr>
         </tbody>
       </table>

@@ -252,6 +252,18 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
       if (!bl) {
         logger.info("No baseline - skipping comparison!");
         // no baseline - UI shall prompt user to simply "accept all"
+        // set to unreviewed
+        const currentState = await getLatestRunState(
+          fastify.db,
+          req.params.runId,
+        );
+        await insertRunStateTransition(fastify.db, {
+          runId: req.params.runId,
+          transitionedFrom: currentState,
+          transitionedTo: "unreviewed",
+          transitionedByService: "system",
+        });
+
         return reply.send();
       }
 
@@ -263,7 +275,7 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
       const results = mergeByName(blSnapshots, incomingSnapshots);
 
       for (const result of results) {
-        req.log.child({ result }).debug("Running comparison");
+        req.log.info({ result }, "Running comparison");
         queue.add("comparison", {
           result,
           runId: req.params.runId,

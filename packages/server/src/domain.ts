@@ -50,7 +50,7 @@ export interface RunDetail extends RunWithSource {
 export interface Project {
   id: string;
   name: string;
-  runs: Run[];
+  createdAt: string;
 }
 
 export interface Snapshot {

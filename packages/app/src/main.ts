@@ -10,7 +10,6 @@ import { installKy } from "./composables/ky";
 import { createPinia } from "pinia";
 import { PiniaColada } from "@pinia/colada";
 import ProjectView from "./views/ProjectView.vue";
-import NewProjectView from "./views/NewProjectView.vue";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -40,10 +39,6 @@ const router = createRouter({
     {
       path: "/projects/:projectId/runs",
       component: ProjectView,
-    },
-    {
-      path: "/projects/new",
-      component: NewProjectView,
     },
     {
       path: "/projects",

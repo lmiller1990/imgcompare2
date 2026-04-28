@@ -1,24 +1,4 @@
 services:
-  frontend:
-    image: lachlanmillerdev/imgcompare-frontend:latest
-    container_name: imgcompare-frontend
-    restart: unless-stopped
-    ports:
-      - "127.0.0.1:3000:80"
-
-  server:
-    image: lachlanmillerdev/imgcompare-server:latest
-    container_name: imgcompare-server
-    restart: unless-stopped
-    ports:
-      - "127.0.0.1:8070:8070"
-    env_file: packages/server/.env
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_started
-
   postgres:
     image: postgres:17-alpine
     container_name: imgcompare-postgres
@@ -41,6 +21,8 @@ services:
     image: redis:7-alpine
     container_name: imgcompare-redis
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
 

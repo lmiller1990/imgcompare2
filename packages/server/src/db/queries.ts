@@ -9,11 +9,13 @@ import {
   runManifests,
   runStateTransitions,
   snapshots,
+  projects,
 } from "./schema.ts";
 import type {
   BaselineComparison,
   Comparison,
   CompletedResult,
+  Project,
   Result,
   Run,
   RunDetail,
@@ -132,10 +134,17 @@ export async function getRunsForProject(
   });
 }
 
-export async function getRunById(
-  db: DB,
-  runId: string,
-): Promise<RunDetail> {
+export async function getProjectsForUser(db: DB, userId: string) {
+  const q = await db.query.projects.findMany({
+    where: (b, { eq, and }) => {
+      return eq(b.ownerUserId, userId);
+    },
+  });
+
+  return q.map(mapProject);
+}
+
+export async function getRunById(db: DB, runId: string): Promise<RunDetail> {
   const run = await db.query.runs.findFirst({
     where: (b, { eq, and }) => {
       return eq(b.id, runId);
@@ -322,6 +331,7 @@ export async function insertSnapshot(
 type SnapshotRow = typeof snapshots.$inferSelect;
 type RunRow = typeof runs.$inferSelect;
 type RunSourceRow = typeof runSources.$inferSelect;
+type ProjectRow = typeof projects.$inferSelect;
 type RunStateTransitionRow = typeof runStateTransitions.$inferSelect;
 type ComparisonRow = {
   comparison: typeof comparisons.$inferSelect;
@@ -381,7 +391,9 @@ function mapBaselineComparison(
 }
 
 function mapSnapshotWithComparisons(
-  row: SnapshotRow & { baselineComparisons: (typeof comparisons.$inferSelect)[] },
+  row: SnapshotRow & {
+    baselineComparisons: (typeof comparisons.$inferSelect)[];
+  },
 ): SnapshotWithComparisons {
   return {
     ...mapSnapshot(row),
@@ -419,6 +431,14 @@ export function mapRunSource(row: RunSourceRow): RunSource {
     commitHash: row.commitHash ?? undefined,
     authorEmail: row.authorEmail ?? undefined,
     authorName: row.authorEmail ?? undefined,
+  };
+}
+
+export function mapProject(row: ProjectRow): Project {
+  return {
+    id: row.id,
+    name: row.name,
+    createdAt: row.createdAt.toISOString(),
   };
 }
 

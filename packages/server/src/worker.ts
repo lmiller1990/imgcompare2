@@ -1,4 +1,3 @@
-import fs from "node:fs/promises";
 import { Queue, Worker } from "bullmq";
 import IORedis from "ioredis";
 import type { Result } from "./domain.ts";
@@ -39,9 +38,9 @@ logger.info("Initializing snapshot comparison worker");
 const worker = new Worker<SnapshotComparisonWorkerPayload>(
   "diff",
   async (job) => {
+    logger.debug({ "job.data": job.data }, `Processing diff`);
     const base = job.data.result.baseline;
     const incoming = job.data.result.snapshot;
-    logger.debug({ "job.data": job.data }, `Processing diff`);
 
     console.log({ base, incoming });
     if (!base || !incoming) {
@@ -74,7 +73,6 @@ const worker = new Worker<SnapshotComparisonWorkerPayload>(
         },
       );
 
-      await fs.writeFile("out.png", PNG.sync.write(diff));
       const uuid = randomUUID();
 
       const key = `${job.data.runId}/${uuid}.png`;

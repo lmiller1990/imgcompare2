@@ -338,8 +338,8 @@ async function findAllScreenshots(cwd: string) {
   return files;
 }
 
-export function postScreenshot() {
-  //
+async function markRunAsComplete(projectId: string, runId: string) {
+  // TODO why double request here - can we just have one
 }
 
 async function postScreenshots(
@@ -481,6 +481,9 @@ async function exec(args: string[]) {
   console.log("Run complete. Finalizing screenshots and comparisons...");
   const files = await findAllScreenshots(process.cwd());
   await postScreenshots(process.cwd(), config.projectId, runId, files);
+
+  // kick of the processing
+  await api.post(`/projects/${config.projectId}/run/${runId}/finalize`);
   process.exit(exitCode);
 }
 
