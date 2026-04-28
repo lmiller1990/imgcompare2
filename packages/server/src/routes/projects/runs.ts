@@ -71,7 +71,10 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
           .select({ id: users.id })
           .from(users)
           .where(eq(users.email, jwtPayload.email!));
-        actor = { transitionedByUserId: dbUser?.id };
+        if (!dbUser) {
+          return reply.code(401).send({ error: "Unauthorized" });
+        }
+        actor = { transitionedByUserId: dbUser.id };
       }
       await insertRunStateTransition(fastify.db, {
         runId: run.id,
