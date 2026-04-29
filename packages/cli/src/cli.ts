@@ -47,7 +47,8 @@ function maybeCollectCiMetadata(): CiMetadata | undefined {
   if (process.env.GITLAB_CI) {
     const metadata: GitLabCiMetadata = {
       provider: "gitlab",
-      ci_project_id: process.env.GITLAB_CI,
+      commitHash: process.env.CI_COMMIT_SHA ?? "missing_hash",
+      ciProjectId: process.env.CI_PROJECT_ID ?? "missing_project_id",
     };
     return metadata;
   }
@@ -352,7 +353,7 @@ async function createRun(
   try {
     const res = await (
       await api.post<{ id: string }>(`/projects/${projectId}/runs`, {
-        json: { gitinfo, ciMetadata },
+        json: { gitinfo, ciMetadata, isGitLabCi: !!process.env.GITLAB_CI },
       })
     ).json();
     return res;

@@ -3,18 +3,16 @@ import {
   type CommitablePipelineStatus,
   type EditPipelineStatusOptions,
 } from "@gitbeaker/rest";
-import type { GitInfo, GitLabCiMetadata } from "@packages/domain/src/domain.ts";
+import type { GitLabCiMetadata } from "@packages/domain/src/domain.ts";
 
 export class GitlabService {
   #client: Gitlab;
-  #gitInfo: GitInfo;
   #ciMetadata: GitLabCiMetadata;
 
-  constructor(gitInfo: GitInfo, ciMetadata: GitLabCiMetadata, token: string) {
+  constructor(ciMetadata: GitLabCiMetadata, token: string) {
     this.#client = new Gitlab({
       token,
     });
-    this.#gitInfo = gitInfo;
     this.#ciMetadata = ciMetadata;
   }
 
@@ -23,8 +21,8 @@ export class GitlabService {
     options: EditPipelineStatusOptions,
   ) {
     return this.#client.Commits.editStatus(
-      this.#ciMetadata.ci_project_id,
-      this.#gitInfo.hash,
+      this.#ciMetadata.ciProjectId,
+      this.#ciMetadata.commitHash,
       status,
       options,
     );

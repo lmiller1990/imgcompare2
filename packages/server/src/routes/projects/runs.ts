@@ -49,7 +49,7 @@ const logger = pino({
 export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
   fastify.post<{
     Params: { projectId: string };
-    Body: { gitinfo?: GitInfo; ciMetadata?: CiMetadata };
+    Body: { gitinfo?: GitInfo; ciMetadata?: CiMetadata; isGitLabCi: boolean };
   }>(
     "/projects/:projectId/runs",
     {
@@ -123,11 +123,7 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
           );
 
           if (provider === "gitlab") {
-            const gl = new GitlabService(
-              req.body.gitinfo,
-              req.body.ciMetadata,
-              token,
-            );
+            const gl = new GitlabService(req.body.ciMetadata, token);
             // no need to block on this
             gl.setPipelineStatus("running", {
               context: "imgcompare",

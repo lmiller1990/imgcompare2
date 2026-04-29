@@ -14,7 +14,8 @@ export interface RunManifest {
 
 export interface GitLabCiMetadata {
   provider: "gitlab";
-  ci_project_id: string;
+  ciProjectId: string;
+  commitHash: string;
 }
 
 export type CiMetadata = GitLabCiMetadata;
