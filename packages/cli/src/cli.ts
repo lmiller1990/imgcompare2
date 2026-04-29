@@ -7,7 +7,6 @@ import { simpleGit } from "simple-git";
 import { input, password as passwordPrompt, select } from "@inquirer/prompts";
 import type {
   CiMetadata,
-  GitInfo,
   GitLabCiMetadata,
   RunManifest,
 } from "@packages/domain/src/domain.js";
@@ -45,73 +44,20 @@ let api = makeApi(DEFAULT_SERVER_URL);
 
 function maybeCollectCiMetadata(): CiMetadata | undefined {
   if (process.env.GITLAB_CI) {
+    // can we just throw if these are null?
+    // projectId and commitHash are *critical* cannot post back w/o these
     const metadata: GitLabCiMetadata = {
       provider: "gitlab",
-      ci_project_id: process.env.GITLAB_CI,
+      commitSha: process.env.CI_COMMIT_SHA ?? "",
+      ciProjectId: process.env.CI_PROJECT_ID ?? "",
+      commitRefName: process.env.CI_COMMIT_REF_NAME ?? "",
+      commitAuthor: process.env.CI_COMMIT_AUTHOR ?? "",
     };
     return metadata;
   }
 
+  debug("Not running in GitLab CI");
   return undefined;
-}
-
-function getFromGitLabEnvVars(): GitInfo {
-  const hash = process.env.CI_COMMIT_SHA ?? "";
-  const branch = process.env.CI_COMMIT_REF_NAME ?? "";
-
-  // CI_COMMIT_AUTHOR = "Name <email>"
-  const authorRaw = process.env.CI_COMMIT_AUTHOR || "";
-
-  const authorName = authorRaw.replace(/ <.*$/, "") ?? "";
-  const authorEmailMatch = authorRaw.match(/<(.*)>/);
-  const authorEmail = authorEmailMatch ? authorEmailMatch[1] : "";
-
-  const result: GitInfo = {
-    hash,
-    authorName,
-    authorEmail,
-    branch,
-  };
-
-  debug("Got git info from gitlab env vars. %o", result);
-
-  return result;
-}
-
-async function getFromLocalGit(): Promise<GitInfo | undefined> {
-  const git = simpleGit();
-
-  const log = await git.log({ maxCount: 1 });
-  const branchSummary = await git.branch();
-
-  const latest = log.latest;
-
-  if (!latest) {
-    debug("Use is not using git. Ignoring.");
-    return;
-  }
-
-  return {
-    hash: latest.hash,
-    authorName: latest.author_name,
-    authorEmail: latest.author_email,
-    branch: branchSummary.current,
-  };
-}
-
-export async function maybeGetGitInfo(): Promise<GitInfo | undefined> {
-  try {
-    if (process.env.GITLAB_CI) {
-      return getFromGitLabEnvVars();
-    } else {
-      return await getFromLocalGit();
-    }
-  } catch (e) {
-    debug(
-      "Use is not using git, or another error in getting git info. Ignoring. Error was %s",
-      e,
-    );
-  }
 }
 
 interface TokenFile {
@@ -343,16 +289,12 @@ async function login() {
   }
 }
 
-async function createRun(
-  projectId: string,
-  gitinfo?: GitInfo,
-  ciMetadata?: CiMetadata,
-) {
-  debug("Creating run... projectId: %s gitinfo: %o", projectId, gitinfo);
+async function createRun(projectId: string, ciMetadata?: CiMetadata) {
+  debug("Creating run... projectId: %s ci metadata: %o", projectId, ciMetadata);
   try {
     const res = await (
       await api.post<{ id: string }>(`/projects/${projectId}/runs`, {
-        json: { gitinfo, ciMetadata },
+        json: { ciMetadata, isGitLabCi: !!process.env.GITLAB_CI },
       })
     ).json();
     return res;
@@ -479,13 +421,11 @@ async function exec(args: string[]) {
     api = makeApi(config.serverUrl);
   }
 
-  const gitinfo = await maybeGetGitInfo();
-
   // I want to run on CI to test the local experience. So we "pretend" not to be CI
   const ciMetadata = process.env.PRETEND_NOT_CI
     ? undefined
     : maybeCollectCiMetadata();
-  const { id: runId } = await createRun(config.projectId, gitinfo, ciMetadata);
+  const { id: runId } = await createRun(config.projectId, ciMetadata);
   debug("Created a run %s", runId);
 
   debug("Spawning child process with cmd: %s and args %o", cmd, cmdArgs);

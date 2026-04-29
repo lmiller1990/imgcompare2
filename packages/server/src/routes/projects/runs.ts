@@ -5,11 +5,11 @@ import { rootBucket, s3 } from "../../services/s3.ts";
 import {
   findComparisonsForCompleteResults,
   getActiveBaselineForProject,
-  getCiToken,
   getLatestRunState,
   getProjectWithRunsAndBaseline,
   getRunById,
   getRunsForProject,
+  getRunSourceByRunId,
   insertRun,
   insertRunManifest,
   insertRunSource,
@@ -28,16 +28,12 @@ import {
   type RunWithSource,
   type Snapshot,
 } from "../../domain.ts";
-import type {
-  CiMetadata,
-  GitInfo,
-  RunManifest,
-} from "@packages/domain/src/domain.ts";
+import type { CiMetadata, RunManifest } from "@packages/domain/src/domain.ts";
 import { DateTime } from "luxon";
 import pino from "pino";
 import { Readable } from "node:stream";
 import type { FastifyInstance } from "fastify";
-import { GitlabService } from "../../services/gitlab.ts";
+import { resolveGitlabService } from "../../services/gitlab.ts";
 import { getDb } from "../../db/index.ts";
 import { services } from "../../services/index.ts";
 import { queue } from "../../worker.ts";
@@ -49,17 +45,17 @@ const logger = pino({
 export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
   fastify.post<{
     Params: { projectId: string };
-    Body: { gitinfo?: GitInfo; ciMetadata?: CiMetadata };
+    Body: {
+      ciMetadata?: CiMetadata;
+      isGitLabCi: boolean;
+    };
   }>(
     "/projects/:projectId/runs",
     {
       preHandler: [fastify.verifyJwt, fastify.verifyProjectAccess],
     },
     async (req, reply) => {
-      logger.info(
-        { gitinfo: req.body?.gitinfo, ciMetadata: req.body?.ciMetadata },
-        "got new run",
-      );
+      logger.info({ ciMetadata: req.body?.ciMetadata }, "got new run");
       const run = await insertRun(fastify.db, req.params.projectId);
 
       const jwtPayload = req.user as {
@@ -90,50 +86,32 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
         ...actor,
       });
 
-      if (req.body?.gitinfo) {
-        req.log.info({ gitinfo: req.body.gitinfo }, "New run with gitinfo");
-        await insertRunSource(
-          fastify.db,
-          run,
-          req.body.gitinfo,
-          req.body.ciMetadata,
+      if (req.body?.ciMetadata) {
+        req.log.info(
+          { ciMetadata: req.body.ciMetadata },
+          "New run with ci metadata",
         );
+        await insertRunSource(fastify.db, run, req.body.ciMetadata);
 
         if (req.body?.ciMetadata) {
           req.log.info({ ciMetadata: req.body.ciMetadata }, "Got ciMetadata");
-          const { provider } = req.body.ciMetadata;
-          const tokenRow = await getCiToken(
+          const gl = await resolveGitlabService(
             fastify.db,
+            fastify.secrets,
             req.params.projectId,
-            provider,
+            req.body.ciMetadata,
           );
-          // NEXT STEP
-          // ALLOW RUNNING W/O TOKEN
-          // USEFUL FOR RUNNING LOCALLY and TESTING!
-          if (!tokenRow) {
-            req.log.error(`No ${provider} token configured for this project`);
+          if (!gl) {
+            req.log.error("No gitlab token configured for this project");
             return reply.code(400).send({
-              error: `No ${provider} token configured for this project`,
+              error: "No gitlab token configured for this project",
             });
           }
-
-          const token = await fastify.secrets.decrypt(
-            tokenRow.ciphertext,
-            req.params.projectId,
-          );
-
-          if (provider === "gitlab") {
-            const gl = new GitlabService(
-              req.body.gitinfo,
-              req.body.ciMetadata,
-              token,
-            );
-            // no need to block on this
-            gl.setPipelineStatus("running", {
-              context: "imgcompare",
-              description: "Run pending",
-            });
-          }
+          // no need to block on this
+          gl.setPipelineStatus("running", {
+            context: "imgcompare",
+            description: "Run pending",
+          });
         }
       }
 
@@ -278,6 +256,7 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
         req.log.info({ result }, "Running comparison");
         queue.add("comparison", {
           result,
+          projectId: req.params.projectId,
           runId: req.params.runId,
         });
       }
@@ -309,6 +288,26 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
         createdByUserId: req.dbUser.id,
         isActive: true,
       });
+
+      const runSource = await getRunSourceByRunId(fastify.db, req.params.runId);
+      const metadata = runSource.ciMetadata;
+      if (!metadata) {
+        throw new Error(`Cannot post back without metadata.`);
+      }
+      const gl = await resolveGitlabService(
+        fastify.db,
+        fastify.secrets,
+        req.params.projectId,
+        metadata,
+      );
+      fastify.log.info("Updating gitlab pipeline status to approved");
+      await gl?.setPipelineStatus("success", {
+        context: "imgcompare",
+        description: "Run approved",
+      });
+      fastify.log.info(
+        "Successfully updated gitlab pipeline status to approved",
+      );
 
       reply.send();
     },

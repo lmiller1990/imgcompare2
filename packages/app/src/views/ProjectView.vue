@@ -88,9 +88,9 @@ function timeAgo(dt: string) {
             </td>
             <td>
               <div v-if="run.source">
-                <code>{{ run.source.branch }}</code>
-                <div :title="run.source.commitHash">
-                  {{ run.source.commitHash?.slice(0, 7) }}
+                <code>{{ run.source.ciMetadata?.commitRefName }}</code>
+                <div :title="run.source.ciMetadata?.commitSha">
+                  {{ run.source.ciMetadata?.commitSha?.slice(0, 7) }}
                 </div>
               </div>
             </td>

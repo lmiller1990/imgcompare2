@@ -5,6 +5,7 @@ import { PNG } from "pngjs";
 import pixelmatch from "pixelmatch";
 import {
   getLatestRunState,
+  getRunSourceByRunId,
   getTotalSnapshotCount,
   incrementSnapshotsProcessed,
   insertComparison,
@@ -13,9 +14,11 @@ import {
 } from "./db/queries.ts";
 import pino from "pino";
 import { randomUUID } from "node:crypto";
+import { resolveGitlabService } from "./services/gitlab.ts";
 import { Readable } from "node:stream";
 import { services } from "./services/index.ts";
 import { getDb } from "./db/index.ts";
+import { LocalSecretService } from "./services/encryption.ts";
 
 export const logger = pino({ level: "debug" });
 
@@ -30,6 +33,7 @@ export const queue = new Queue<SnapshotComparisonWorkerPayload>("diff", {
 
 export interface SnapshotComparisonWorkerPayload {
   result: Result;
+  projectId: string;
   runId: string;
 }
 
@@ -116,6 +120,32 @@ const worker = new Worker<SnapshotComparisonWorkerPayload>(
           transitionedTo: "unreviewed",
           transitionedByService: "worker",
         });
+
+        const runSource = await getRunSourceByRunId(db, job.data.runId);
+        const metadata = runSource.ciMetadata;
+        if (!metadata) {
+          throw new Error(`Cannot post back without metadata.`);
+        }
+
+        // now post back to gitlab.
+        // for now assume all g
+        logger.info(
+          metadata,
+          "Posting back to GitLab using runSource.ciMetadata",
+        );
+        const secrets = LocalSecretService.fromEnv();
+        const gl = await resolveGitlabService(
+          db,
+          secrets,
+          job.data.projectId,
+          metadata,
+        );
+        await gl?.setPipelineStatus("failed", {
+          context: "imgcompare",
+          description: "Run awaiting approval",
+        });
+
+        logger.info("Posted back to GitLab successfully");
         return;
       }
 

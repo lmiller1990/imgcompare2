@@ -1,3 +1,5 @@
+import type { CiMetadata } from "@packages/domain/src/domain.ts";
+
 export interface Run {
   id: string;
   createdAt: string;
@@ -6,10 +8,7 @@ export interface Run {
 
 export interface RunSource {
   id: string;
-  branch: string | undefined;
-  commitHash: string | undefined;
-  authorEmail: string | undefined;
-  authorName: string | undefined;
+  ciMetadata: CiMetadata | undefined;
 }
 
 export interface RunStateTransition {

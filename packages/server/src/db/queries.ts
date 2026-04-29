@@ -27,7 +27,7 @@ import type {
 } from "../domain.ts";
 import { alias } from "drizzle-orm/pg-core";
 import pRetry from "p-retry";
-import type { CiMetadata, GitInfo } from "@packages/domain/src/domain.ts";
+import type { CiMetadata } from "@packages/domain/src/domain.ts";
 import type { DB } from "./index.ts";
 
 type SnapshotTuple = [string, string];
@@ -226,20 +226,32 @@ export async function insertRun(db: DB, projectId: string): Promise<Run> {
   );
 }
 
+export async function getRunSourceByRunId(
+  db: DB,
+  runId: string,
+): Promise<RunSource> {
+  const [result] = await db
+    .select()
+    .from(runSources)
+    .where(eq(runSources.runId, runId))
+    .limit(1);
+
+  if (!result) {
+    throw new Error(`Could not find runSource for runId: ${runId}.`);
+  }
+
+  return mapRunSource(result);
+}
+
 export async function insertRunSource(
   db: DB,
   run: Run,
-  gitinfo: GitInfo,
   ciMetadata?: CiMetadata,
 ): Promise<RunSource> {
   const inserted = await db
     .insert(runSources)
     .values({
       runId: run.id,
-      branch: gitinfo.branch,
-      commitHash: gitinfo.hash,
-      authorEmail: gitinfo.authorEmail,
-      authorName: gitinfo.authorName,
       ciMetadata: ciMetadata,
     })
     .returning();
@@ -427,10 +439,7 @@ export function mapRunStateTransition(
 export function mapRunSource(row: RunSourceRow): RunSource {
   return {
     id: row.id,
-    branch: row.branch ?? undefined,
-    commitHash: row.commitHash ?? undefined,
-    authorEmail: row.authorEmail ?? undefined,
-    authorName: row.authorEmail ?? undefined,
+    ciMetadata: row.ciMetadata ?? undefined,
   };
 }
 
