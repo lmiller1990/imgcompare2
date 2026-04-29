@@ -78,7 +78,9 @@ export const runSources = pgTable("run_sources", {
   // For all -> provier. Supported: "gitlab"
   //  For gitlab -> CI_PROJECT_ID
   // Null when run locally
-  ciMetadata: jsonb("ci_metadata"),
+  ciMetadata: jsonb("ci_metadata")
+    .$type<Record<string, string>>()
+    .default(sql`'{}'::jsonb`),
   commitHash: text("commit_hash"),
   authorEmail: text("author_email"),
   authorName: text("author_name"),

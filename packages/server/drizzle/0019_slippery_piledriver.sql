@@ -1,0 +1,1 @@
+ALTER TABLE "run_sources" ALTER COLUMN "ci_metadata" SET DEFAULT '{}'::jsonb;

@@ -226,11 +226,28 @@ export async function insertRun(db: DB, projectId: string): Promise<Run> {
   );
 }
 
+export async function getRunSourceByRunId(
+  db: DB,
+  runId: string,
+): Promise<RunSource> {
+  const [result] = await db
+    .select()
+    .from(runSources)
+    .where(eq(runSources.runId, runId))
+    .limit(1);
+
+  if (!result) {
+    throw new Error(`Could not find runSource for runId: ${runId}.`);
+  }
+
+  return mapRunSource(result);
+}
+
 export async function insertRunSource(
   db: DB,
   run: Run,
   gitinfo: GitInfo,
-  ciMetadata?: CiMetadata,
+  ciMetadata?: Record<string, string>,
 ): Promise<RunSource> {
   const inserted = await db
     .insert(runSources)
@@ -431,6 +448,7 @@ export function mapRunSource(row: RunSourceRow): RunSource {
     commitHash: row.commitHash ?? undefined,
     authorEmail: row.authorEmail ?? undefined,
     authorName: row.authorEmail ?? undefined,
+    ciMetadata: row.ciMetadata ?? undefined,
   };
 }
 
