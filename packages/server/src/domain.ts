@@ -8,11 +8,7 @@ export interface Run {
 
 export interface RunSource {
   id: string;
-  branch: string | undefined;
-  commitHash: string | undefined;
-  authorEmail: string | undefined;
-  authorName: string | undefined;
-  ciMetadata: Record<string, string> | undefined;
+  ciMetadata: CiMetadata | undefined;
 }
 
 export interface RunStateTransition {

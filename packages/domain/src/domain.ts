@@ -1,10 +1,3 @@
-export type GitInfo = {
-  hash: string;
-  authorName: string | undefined;
-  authorEmail: string | undefined;
-  branch: string | undefined;
-};
-
 export interface RunManifest {
   screenshots: Array<{
     name: string;
@@ -15,7 +8,9 @@ export interface RunManifest {
 export interface GitLabCiMetadata {
   provider: "gitlab";
   ciProjectId: string;
-  commitHash: string;
+  commitSha: string;
+  commitRefName: string;
+  commitAuthor: string;
 }
 
 export type CiMetadata = GitLabCiMetadata;

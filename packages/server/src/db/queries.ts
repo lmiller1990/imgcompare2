@@ -27,7 +27,7 @@ import type {
 } from "../domain.ts";
 import { alias } from "drizzle-orm/pg-core";
 import pRetry from "p-retry";
-import type { CiMetadata, GitInfo } from "@packages/domain/src/domain.ts";
+import type { CiMetadata } from "@packages/domain/src/domain.ts";
 import type { DB } from "./index.ts";
 
 type SnapshotTuple = [string, string];
@@ -246,17 +246,12 @@ export async function getRunSourceByRunId(
 export async function insertRunSource(
   db: DB,
   run: Run,
-  gitinfo: GitInfo,
-  ciMetadata?: Record<string, string>,
+  ciMetadata?: CiMetadata,
 ): Promise<RunSource> {
   const inserted = await db
     .insert(runSources)
     .values({
       runId: run.id,
-      branch: gitinfo.branch,
-      commitHash: gitinfo.hash,
-      authorEmail: gitinfo.authorEmail,
-      authorName: gitinfo.authorName,
       ciMetadata: ciMetadata,
     })
     .returning();
@@ -444,10 +439,6 @@ export function mapRunStateTransition(
 export function mapRunSource(row: RunSourceRow): RunSource {
   return {
     id: row.id,
-    branch: row.branch ?? undefined,
-    commitHash: row.commitHash ?? undefined,
-    authorEmail: row.authorEmail ?? undefined,
-    authorName: row.authorEmail ?? undefined,
     ciMetadata: row.ciMetadata ?? undefined,
   };
 }

@@ -1,6 +1,6 @@
 {
-  "id": "c7240cda-94c8-41cb-ab9b-e28e6612105c",
-  "prevId": "b81b80ee-df20-4630-8b40-a61919cefd24",
+  "id": "d5c367bc-f518-4a7d-a2da-584d7102c0d0",
+  "prevId": "c7240cda-94c8-41cb-ab9b-e28e6612105c",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -54,8 +54,12 @@
           "name": "baselines_project_id_projects_id_fk",
           "tableFrom": "baselines",
           "tableTo": "projects",
-          "columnsFrom": ["project_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -63,8 +67,12 @@
           "name": "baselines_source_run_id_runs_id_fk",
           "tableFrom": "baselines",
           "tableTo": "runs",
-          "columnsFrom": ["source_run_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "source_run_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -72,8 +80,12 @@
           "name": "baselines_created_by_user_id_users_id_fk",
           "tableFrom": "baselines",
           "tableTo": "users",
-          "columnsFrom": ["created_by_user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "created_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -127,8 +139,12 @@
           "name": "ci_tokens_project_id_projects_id_fk",
           "tableFrom": "ci_tokens",
           "tableTo": "projects",
-          "columnsFrom": ["project_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -138,7 +154,10 @@
         "ci_tokens_project_id_provider_unique": {
           "name": "ci_tokens_project_id_provider_unique",
           "nullsNotDistinct": false,
-          "columns": ["project_id", "provider"]
+          "columns": [
+            "project_id",
+            "provider"
+          ]
         }
       },
       "policies": {},
@@ -194,8 +213,12 @@
           "name": "client_credentials_project_id_projects_id_fk",
           "tableFrom": "client_credentials",
           "tableTo": "projects",
-          "columnsFrom": ["project_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -205,7 +228,9 @@
         "client_credentials_client_id_unique": {
           "name": "client_credentials_client_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["client_id"]
+          "columns": [
+            "client_id"
+          ]
         }
       },
       "policies": {},
@@ -261,8 +286,12 @@
           "name": "comparisons_baseline_snapshot_id_snapshots_id_fk",
           "tableFrom": "comparisons",
           "tableTo": "snapshots",
-          "columnsFrom": ["baseline_snapshot_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "baseline_snapshot_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -270,8 +299,12 @@
           "name": "comparisons_current_snapshot_id_snapshots_id_fk",
           "tableFrom": "comparisons",
           "tableTo": "snapshots",
-          "columnsFrom": ["current_snapshot_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "current_snapshot_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -281,7 +314,10 @@
         "comparisons_baseline_snapshot_id_current_snapshot_id_unique": {
           "name": "comparisons_baseline_snapshot_id_current_snapshot_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["baseline_snapshot_id", "current_snapshot_id"]
+          "columns": [
+            "baseline_snapshot_id",
+            "current_snapshot_id"
+          ]
         }
       },
       "policies": {},
@@ -332,8 +368,12 @@
           "name": "projects_owner_user_id_users_id_fk",
           "tableFrom": "projects",
           "tableTo": "users",
-          "columnsFrom": ["owner_user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "owner_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -399,8 +439,12 @@
           "name": "run_manifests_run_id_runs_id_fk",
           "tableFrom": "run_manifests",
           "tableTo": "runs",
-          "columnsFrom": ["run_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "run_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -428,36 +472,12 @@
           "primaryKey": false,
           "notNull": true
         },
-        "branch": {
-          "name": "branch",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "ci_metadata": {
           "name": "ci_metadata",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false,
           "default": "'{}'::jsonb"
-        },
-        "commit_hash": {
-          "name": "commit_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "author_email": {
-          "name": "author_email",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "author_name": {
-          "name": "author_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -473,8 +493,12 @@
           "name": "run_sources_run_id_runs_id_fk",
           "tableFrom": "run_sources",
           "tableTo": "runs",
-          "columnsFrom": ["run_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "run_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -484,7 +508,9 @@
         "run_sources_run_id_unique": {
           "name": "run_sources_run_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["run_id"]
+          "columns": [
+            "run_id"
+          ]
         }
       },
       "policies": {},
@@ -546,8 +572,12 @@
           "name": "run_state_transitions_run_id_runs_id_fk",
           "tableFrom": "run_state_transitions",
           "tableTo": "runs",
-          "columnsFrom": ["run_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "run_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -555,8 +585,12 @@
           "name": "run_state_transitions_transitioned_by_user_id_users_id_fk",
           "tableFrom": "run_state_transitions",
           "tableTo": "users",
-          "columnsFrom": ["transitioned_by_user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "transitioned_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -622,8 +656,12 @@
           "name": "runs_project_id_projects_id_fk",
           "tableFrom": "runs",
           "tableTo": "projects",
-          "columnsFrom": ["project_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -676,8 +714,12 @@
           "name": "snapshots_run_id_runs_id_fk",
           "tableFrom": "snapshots",
           "tableTo": "runs",
-          "columnsFrom": ["run_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "run_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -733,7 +775,9 @@
         "users_email_unique": {
           "name": "users_email_unique",
           "nullsNotDistinct": false,
-          "columns": ["email"]
+          "columns": [
+            "email"
+          ]
         }
       },
       "policies": {},

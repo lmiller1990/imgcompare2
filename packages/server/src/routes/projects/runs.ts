@@ -28,7 +28,7 @@ import {
   type RunWithSource,
   type Snapshot,
 } from "../../domain.ts";
-import type { GitInfo, RunManifest } from "@packages/domain/src/domain.ts";
+import type { CiMetadata, RunManifest } from "@packages/domain/src/domain.ts";
 import { DateTime } from "luxon";
 import pino from "pino";
 import { Readable } from "node:stream";
@@ -46,8 +46,7 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
   fastify.post<{
     Params: { projectId: string };
     Body: {
-      gitinfo?: GitInfo;
-      ciMetadata?: Record<string, string>;
+      ciMetadata?: CiMetadata;
       isGitLabCi: boolean;
     };
   }>(
@@ -56,10 +55,7 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
       preHandler: [fastify.verifyJwt, fastify.verifyProjectAccess],
     },
     async (req, reply) => {
-      logger.info(
-        { gitinfo: req.body?.gitinfo, ciMetadata: req.body?.ciMetadata },
-        "got new run",
-      );
+      logger.info({ ciMetadata: req.body?.ciMetadata }, "got new run");
       const run = await insertRun(fastify.db, req.params.projectId);
 
       const jwtPayload = req.user as {
@@ -90,14 +86,12 @@ export const projectRunsRoutesPlugin = async (fastify: FastifyInstance) => {
         ...actor,
       });
 
-      if (req.body?.gitinfo) {
-        req.log.info({ gitinfo: req.body.gitinfo }, "New run with gitinfo");
-        await insertRunSource(
-          fastify.db,
-          run,
-          req.body.gitinfo,
-          req.body.ciMetadata,
+      if (req.body?.ciMetadata) {
+        req.log.info(
+          { ciMetadata: req.body.ciMetadata },
+          "New run with ci metadata",
         );
+        await insertRunSource(fastify.db, run, req.body.ciMetadata);
 
         if (req.body?.ciMetadata) {
           req.log.info({ ciMetadata: req.body.ciMetadata }, "Got ciMetadata");

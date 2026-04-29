@@ -14,6 +14,7 @@ import {
   check,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import type { CiMetadata } from "@packages/domain/src/domain.ts";
 
 const bytea = customType<{ data: Buffer }>({
   dataType() {
@@ -74,16 +75,10 @@ export const runSources = pgTable("run_sources", {
     .references(() => runs.id, { onDelete: "cascade" }),
 
   // Git metadata
-  branch: text("branch"),
-  // For all -> provier. Supported: "gitlab"
-  //  For gitlab -> CI_PROJECT_ID
-  // Null when run locally
+  // @see CiMetadata
   ciMetadata: jsonb("ci_metadata")
-    .$type<Record<string, string>>()
+    .$type<CiMetadata>()
     .default(sql`'{}'::jsonb`),
-  commitHash: text("commit_hash"),
-  authorEmail: text("author_email"),
-  authorName: text("author_name"),
 
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
