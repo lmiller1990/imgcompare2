@@ -11,7 +11,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const { fastify } = await createApp({ db });
 
   try {
-    await fastify.listen({ port: 8070 });
+    await fastify.listen({ port: 8070, host: "0.0.0.0" });
     console.info("=== Routes ===\n\n", fastify.printRoutes());
   } catch (err) {
     fastify.log.error(err);

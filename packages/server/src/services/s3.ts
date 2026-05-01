@@ -13,10 +13,12 @@ const logger = pino({ level: "debug" });
 
 logger.info(`Creating S3 client with profile: ${process.env.AWS_PROFILE}`);
 
-export const rootBucket = "lcm-au-imgcompare-screenshots";
+export const rootBucket =
+  process.env.S3_BUCKET ?? "lcm-au-imgcompare-screenshots";
+
 export const s3 = new S3Client({
-  region: "ap-southeast-2",
-  profile: process.env.AWS_PROFILE ?? "terraform",
+  region: process.env.AWS_REGION ?? "ap-southeast-2",
+  ...(process.env.AWS_PROFILE && { profile: process.env.AWS_PROFILE }),
 });
 
 interface Uploadable {

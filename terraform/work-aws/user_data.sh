@@ -1,7 +1,27 @@
+#!/bin/bash
+set -euo pipefail
+
+# Install Docker
+dnf update -y
+dnf install -y docker
+systemctl enable --now docker
+
+# Install Docker Compose v2
+mkdir -p /usr/local/lib/docker/cli-plugins
+curl -SL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64" \
+  -o /usr/local/lib/docker/cli-plugins/docker-compose
+chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+mkdir -p /opt/imgcompare
+
+cat > /opt/imgcompare/.env <<'ENVFILE'
+MASTER_KEY=${master_key}
+ENVFILE
+
+cat > /opt/imgcompare/docker-compose.yml <<'COMPOSEFILE'
 services:
   postgres:
     image: postgres:17-alpine
-    container_name: imgcompare-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: imgcompare
@@ -19,16 +39,12 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: imgcompare-redis
     restart: unless-stopped
     volumes:
       - redis_data:/data
 
   server:
     image: lachlanmillerdev/imgcompare-server
-    build:
-      context: .
-      dockerfile: packages/server/Dockerfile
     restart: unless-stopped
     depends_on:
       postgres:
@@ -38,10 +54,9 @@ services:
     environment:
       DATABASE_URL: postgresql://imgcompare:imgcompare@postgres:5432/imgcompare
       REDIS_HOST: redis
-      MASTER_KEY: ${MASTER_KEY}
-      AWS_PROFILE: ${AWS_PROFILE:-terraform}
+      MASTER_KEY: ${master_key}
       AWS_REGION: ap-southeast-2
-      S3_BUCKET: ${S3_BUCKET:-lcm-au-imgcompare-screenshots}
+      S3_BUCKET: mls-imgcompare
 
   frontend:
     image: lachlanmillerdev/imgcompare-frontend
@@ -49,7 +64,6 @@ services:
 
   nginx:
     image: lachlanmillerdev/imgcompare-nginx
-    build: ./nginx
     restart: unless-stopped
     ports:
       - "80:80"
@@ -60,3 +74,8 @@ services:
 volumes:
   postgres_data:
   redis_data:
+COMPOSEFILE
+
+cd /opt/imgcompare
+docker compose pull
+docker compose up -d
