@@ -43,6 +43,16 @@ services:
     volumes:
       - redis_data:/data
 
+  # One-shot: applies committed SQL migrations, then exits.
+  migrate:
+    image: lachlanmillerdev/imgcompare-server
+    command: ["node", "src/migrate.ts"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://imgcompare:imgcompare@postgres:5432/imgcompare
+
   server:
     image: lachlanmillerdev/imgcompare-server
     restart: unless-stopped
@@ -51,25 +61,18 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      migrate:
+        condition: service_completed_successfully
     environment:
       DATABASE_URL: postgresql://imgcompare:imgcompare@postgres:5432/imgcompare
       REDIS_HOST: redis
       MASTER_KEY: ${master_key}
       AWS_REGION: ap-southeast-2
       S3_BUCKET: mls-imgcompare
-
-  frontend:
-    image: lachlanmillerdev/imgcompare-frontend
-    restart: unless-stopped
-
-  nginx:
-    image: lachlanmillerdev/imgcompare-nginx
-    restart: unless-stopped
+    # No AWS_PROFILE: the SDK falls back to the EC2 instance IAM role.
+    # Fastify serves both the API and the built frontend on 8070.
     ports:
-      - "80:80"
-    depends_on:
-      - frontend
-      - server
+      - "80:8070"
 
 volumes:
   postgres_data:

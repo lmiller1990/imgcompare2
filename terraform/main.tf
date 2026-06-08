@@ -11,6 +11,11 @@ data "aws_caller_identity" "current" {}
 
 resource "aws_s3_bucket" "screenshots" {
   bucket = "lcm-au-imgcompare-screenshots"
+
+  # Allow Terraform to empty all object versions / delete markers before
+  # destroying the bucket. Without this, `terraform destroy` fails with
+  # BucketNotEmpty because versioning is Enabled.
+  force_destroy = true
 }
 
 resource "aws_s3_bucket_versioning" "screenshots" {

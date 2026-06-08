@@ -1,7 +1,8 @@
-docker buildx build --load --platform linux/amd64 -t lachlanmillerdev/imgcompare-frontend -f ./packages/app/Dockerfile .
-docker buildx build --load --platform linux/amd64 -t lachlanmillerdev/imgcompare-server -f ./packages/server/Dockerfile .
-docker buildx build --load --platform linux/amd64 -t lachlanmillerdev/imgcompare-nginx -f ./nginx/Dockerfile ./nginx
+#!/usr/bin/env bash
+set -euo pipefail
 
-docker push lachlanmillerdev/imgcompare-frontend
+# Single application image: Fastify serves the API and the built Vue frontend,
+# and the same image runs migrations (`node src/migrate.ts`).
+docker buildx build --load --platform linux/amd64 -t lachlanmillerdev/imgcompare-server -f ./packages/server/Dockerfile .
+
 docker push lachlanmillerdev/imgcompare-server
-docker push lachlanmillerdev/imgcompare-nginx
