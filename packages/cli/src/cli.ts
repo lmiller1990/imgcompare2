@@ -29,7 +29,7 @@ function makeApi(baseUrl: string) {
     hooks: {
       beforeRequest: [
         async ({ request }) => {
-          debug("Request to URL %s", request.url, request);
+          debug("Request to URL %s", request.url);
           const token = await getAuthToken(normalizedBase);
           if (token) {
             request.headers.set("Authorization", `Bearer ${token}`);
@@ -306,7 +306,9 @@ async function createRun(projectId: string, ciMetadata?: CiMetadata) {
 }
 
 async function findAllScreenshots(cwd: string) {
-  const files = await globby(path.posix.join(cwd, "**/*.png"));
+  const files = await globby(path.posix.join(cwd, "**/*.png"), {
+    gitignore: true,
+  });
   debug("Found files %o", files);
   return files;
 }

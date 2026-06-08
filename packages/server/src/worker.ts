@@ -62,13 +62,27 @@ const worker = new Worker<SnapshotComparisonWorkerPayload>(
 
       const img1 = PNG.sync.read(baseStream);
       const img2 = PNG.sync.read(incomingStream);
-      const { width, height } = img1;
+
+      // The two images may differ in size (e.g. a title change makes the page
+      // taller). pixelmatch requires identical dimensions, so pad both to the
+      // common max size (opaque white, top-left aligned) before comparing.
+      const width = Math.max(img1.width, img2.width);
+      const height = Math.max(img1.height, img2.height);
+      const pad = (src: PNG): PNG => {
+        if (src.width === width && src.height === height) return src;
+        const dst = new PNG({ width, height });
+        dst.data.fill(0xff);
+        PNG.bitblt(src, dst, 0, 0, src.width, src.height, 0, 0);
+        return dst;
+      };
+      const padded1 = pad(img1);
+      const padded2 = pad(img2);
       const diff = new PNG({ width, height });
 
       logger.debug("comparing pixels");
       const pxDiff = pixelmatch(
-        img1.data,
-        img2.data,
+        padded1.data,
+        padded2.data,
         diff.data,
         width,
         height,
