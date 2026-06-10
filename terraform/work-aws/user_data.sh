@@ -1,7 +1,27 @@
+#!/bin/bash
+set -euo pipefail
+
+# Install Docker
+dnf update -y
+dnf install -y docker
+systemctl enable --now docker
+
+# Install Docker Compose v2
+mkdir -p /usr/local/lib/docker/cli-plugins
+curl -SL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64" \
+  -o /usr/local/lib/docker/cli-plugins/docker-compose
+chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+mkdir -p /opt/imgcompare
+
+cat > /opt/imgcompare/.env <<'ENVFILE'
+MASTER_KEY=${master_key}
+ENVFILE
+
+cat > /opt/imgcompare/docker-compose.yml <<'COMPOSEFILE'
 services:
   postgres:
     image: postgres:17-alpine
-    container_name: imgcompare-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: imgcompare
@@ -19,19 +39,13 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: imgcompare-redis
     restart: unless-stopped
     volumes:
       - redis_data:/data
 
-  # One-shot: applies committed SQL migrations, then exits. Reuses the server
-  # image so no Node / drizzle-kit is needed on the host. The server waits for
-  # this to finish successfully before starting.
+  # One-shot: applies committed SQL migrations, then exits.
   migrate:
     image: lachlanmillerdev/imgcompare-server
-    build:
-      context: .
-      dockerfile: packages/server/Dockerfile
     command: ["node", "src/migrate.ts"]
     depends_on:
       postgres:
@@ -41,9 +55,6 @@ services:
 
   server:
     image: lachlanmillerdev/imgcompare-server
-    build:
-      context: .
-      dockerfile: packages/server/Dockerfile
     restart: unless-stopped
     depends_on:
       postgres:
@@ -55,10 +66,10 @@ services:
     environment:
       DATABASE_URL: postgresql://imgcompare:imgcompare@postgres:5432/imgcompare
       REDIS_HOST: redis
-      MASTER_KEY: ${MASTER_KEY}
-      AWS_PROFILE: ${AWS_PROFILE:-terraform}
+      MASTER_KEY: ${master_key}
       AWS_REGION: ap-southeast-2
-      S3_BUCKET: ${S3_BUCKET:-lcm-au-imgcompare-screenshots}
+      S3_BUCKET: mls-imgcompare
+    # No AWS_PROFILE: the SDK falls back to the EC2 instance IAM role.
     # Fastify serves both the API and the built frontend on 8070.
     ports:
       - "80:8070"
@@ -66,3 +77,8 @@ services:
 volumes:
   postgres_data:
   redis_data:
+COMPOSEFILE
+
+cd /opt/imgcompare
+docker compose pull
+docker compose up -d
